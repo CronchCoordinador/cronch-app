@@ -5,32 +5,32 @@ const WATERMARK_B64 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAB
 // ==================== DATA ====================
 const PERSONAL_CRONCH = [
   { trabajador: "JUAN DAVID BARRIOS MONCADA", tipoDoc: "cédula de ciudadanía", cc: "1071062013", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-10-16", salario: 1750905 },
-  { trabajador: "CRISTIAN CAMILO BUITRAGO HERNANDEZ", tipoDoc: "cédula de ciudadanía", cc: "1057597180", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2024-04-15", salario: 1750905 },
-  { trabajador: "YURI ANDREA CARRASCO VALENCIA", tipoDoc: "cédula de ciudadanía", cc: "1070616500", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2024-04-12", salario: 1750905 },
-  { trabajador: "YINETH YISED CRUZ HUERFANO", tipoDoc: "cédula de ciudadanía", cc: "39583757", cargo: "AUXILIAR CONTABLE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-05", salario: 1750905 },
-  { trabajador: "CARLOS GUILLERMO DONCEL BARRERO", tipoDoc: "cédula de ciudadanía", cc: "1070590158", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-02", salario: 1750905 },
-  { trabajador: "JUAN DAVID FRAYLE SUAREZ", tipoDoc: "cédula de ciudadanía", cc: "1014658459", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-08", salario: 1750905 },
-  { trabajador: "FAIBER NICOLAS GOMEZ GARCIA", tipoDoc: "cédula de ciudadanía", cc: "1070615687", cargo: "COORDINADOR DE VENTAS", tipoContrato: "TÉRMINO FIJO", ingreso: "2022-01-07", salario: 2956000 },
-  { trabajador: "CESAR ANDRES GONZALEZ REYES", tipoDoc: "cédula de ciudadanía", cc: "1070602266", cargo: "LIDER DE COCINA", tipoContrato: "TÉRMINO FIJO", ingreso: "2023-08-07", salario: 1750905 },
-  { trabajador: "JACKELINE KATIUSCA GUAIMARO MESSIAS", tipoDoc: "permiso de proteccion temporal", cc: "5839135", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-02", salario: 1750905 },
-  { trabajador: "NAREN TRIANA GUTERREZ", tipoDoc: "cédula de ciudadanía", cc: "1010027717", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-02", salario: 1750905 },
+  { trabajador: "CRISTIAN CAMILO BUITRAGO HERNANDEZ", tipoDoc: "cédula de ciudadanía", cc: "1057597180", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-04-15", salario: 1750905 },
+  { trabajador: "YURI ANDREA CARRASCO VALENCIA", tipoDoc: "cédula de ciudadanía", cc: "1070616500", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2024-12-04", salario: 1750905 },
+  { trabajador: "YINETH YISED CRUZ HUERFANO", tipoDoc: "cédula de ciudadanía", cc: "39583757", cargo: "AUXILIAR CONTABLE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-05-01", salario: 1750905 },
+  { trabajador: "CARLOS GUILLERMO DONCEL BARRERO", tipoDoc: "cédula de ciudadanía", cc: "1070590158", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-02-01", salario: 1750905 },
+  { trabajador: "JUAN DAVID FRAYLE SUAREZ", tipoDoc: "cédula de ciudadanía", cc: "1014658459", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-08-01", salario: 1750905 },
+  { trabajador: "FAIBER NICOLAS GOMEZ GARCIA", tipoDoc: "cédula de ciudadanía", cc: "1070615687", cargo: "COORDINADOR DE VENTAS", tipoContrato: "TÉRMINO FIJO", ingreso: "2022-07-01", salario: 2956000 },
+  { trabajador: "CESAR ANDRES GONZALEZ REYES", tipoDoc: "cédula de ciudadanía", cc: "1070602266", cargo: "LIDER DE COCINA", tipoContrato: "TÉRMINO FIJO", ingreso: "2023-07-08", salario: 1750905 },
+  { trabajador: "JACKELINE KATIUSCA GUAIMARO MESSIAS", tipoDoc: "permiso de proteccion temporal", cc: "5839135", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-02-01", salario: 1750905 },
+  { trabajador: "NAREN TRIANA GUTERREZ", tipoDoc: "cédula de ciudadanía", cc: "1010027717", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-02-01", salario: 1750905 },
   { trabajador: "JULIO CESAR GUTIERREZ GUZMAN", tipoDoc: "cédula de ciudadanía", cc: "1010016961", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-01", salario: 1750905 },
-  { trabajador: "ROMERO DANIELA GUTIERREZ", tipoDoc: "cédula de ciudadanía", cc: "1010005354", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2024-01-10", salario: 1750905 },
+  { trabajador: "ROMERO DANIELA GUTIERREZ", tipoDoc: "cédula de ciudadanía", cc: "1010005354", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2024-10-01", salario: 1750905 },
   { trabajador: "EDUARDO JOSE JOHNSON NIETO", tipoDoc: "cédula de ciudadanía", cc: "1070614431", cargo: "ALMACENISTA", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-10-16", salario: 1750905 },
-  { trabajador: "CAMILO ANDRES LINDARTE LINDARTE VELEZ", tipoDoc: "cédula de ciudadanía", cc: "1106893759", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-05", salario: 1750905 },
+  { trabajador: "CAMILO ANDRES LINDARTE LINDARTE VELEZ", tipoDoc: "cédula de ciudadanía", cc: "1106893759", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-05-01", salario: 1750905 },
   { trabajador: "SERGIO LOPEZ LOZANO", tipoDoc: "cédula de ciudadanía", cc: "1070607437", cargo: "DIRECTOR DE OPERACIONES", tipoContrato: "TÉRMINO INDEFINIDO", ingreso: "2025-11-13", salario: 5000000 },
   { trabajador: "ERIZHANDRA LOPEZ VIZCAINO", tipoDoc: "cédula de ciudadanía", cc: "5032682", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2022-09-21", salario: 1750905 },
-  { trabajador: "DAMARIS JOHANA MEJIA FIERRO", tipoDoc: "cédula de ciudadanía", cc: "1110569444", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2021-01-11", salario: 1750905 },
-  { trabajador: "DANIEL FELIPE MUÑOZ CUENCA", tipoDoc: "cédula de ciudadanía", cc: "1006814450", cargo: "COORDINADOR DE OPERACIONES", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-03", salario: 1750905 },
+  { trabajador: "DAMARIS JOHANA MEJIA FIERRO", tipoDoc: "cédula de ciudadanía", cc: "1110569444", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2021-11-01", salario: 1750905 },
+  { trabajador: "DANIEL FELIPE MUÑOZ CUENCA", tipoDoc: "cédula de ciudadanía", cc: "1006814450", cargo: "COORDINADOR DE OPERACIONES", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-03-01", salario: 1750905 },
   { trabajador: "DUVAN AUGUSTO OLIVEROS OSPINA", tipoDoc: "cédula de ciudadanía", cc: "89801349", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-10-16", salario: 1750905 },
   { trabajador: "JESSICA LORENA PARRAGA CABEZAS", tipoDoc: "cédula de ciudadanía", cc: "1069717679", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2024-04-15", salario: 1750905 },
-  { trabajador: "NICOL NATALIA PUENTES SANCHEZ", tipoDoc: "cédula de ciudadanía", cc: "1092334723", cargo: "COORDINADORA COMPRAS", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-03", salario: 1978523 },
+  { trabajador: "NICOL NATALIA PUENTES SANCHEZ", tipoDoc: "cédula de ciudadanía", cc: "1092334723", cargo: "COORDINADORA COMPRAS", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-03-01", salario: 1978523 },
   { trabajador: "ANGIE YINESKA RINCON PALACIOS", tipoDoc: "cédula de ciudadanía", cc: "1030677957", cargo: "DIRECTORA DE MARKETING", tipoContrato: "TÉRMINO INDEFINIDO", ingreso: "2021-04-16", salario: 2847000 },
-  { trabajador: "JOHANNA CATHERINE RODRIGUEZ CRUZ", tipoDoc: "cédula de ciudadanía", cc: "1070608721", cargo: "COORDINADORA DE INVENTARIOS", tipoContrato: "TÉRMINO FIJO", ingreso: "2023-01-08", salario: 1978523 },
-  { trabajador: "LAURA VALENTINA RODRIGUEZ RONDON", tipoDoc: "cédula de ciudadanía", cc: "1093292021", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-01-02", salario: 1750905 },
-  { trabajador: "MELANNY TATIANA USECHE ESCOBAR", tipoDoc: "cédula de ciudadanía", cc: "1126908169", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2021-01-12", salario: 1750905 },
+  { trabajador: "JOHANNA CATHERINE RODRIGUEZ CRUZ", tipoDoc: "cédula de ciudadanía", cc: "1070608721", cargo: "COORDINADORA DE INVENTARIOS", tipoContrato: "TÉRMINO FIJO", ingreso: "2023-08-01", salario: 1978523 },
+  { trabajador: "LAURA VALENTINA RODRIGUEZ RONDON", tipoDoc: "cédula de ciudadanía", cc: "1093292021", cargo: "COCINERO", tipoContrato: "TÉRMINO FIJO", ingreso: "2025-02-01", salario: 1750905 },
+  { trabajador: "MELANNY TATIANA USECHE ESCOBAR", tipoDoc: "cédula de ciudadanía", cc: "1126908169", cargo: "ATENCION AL CLIENTE", tipoContrato: "TÉRMINO FIJO", ingreso: "2021-12-01", salario: 1750905 },
   { trabajador: "JEFFERSON CAMILO VALENCIA TELLEZ", tipoDoc: "cédula de ciudadanía", cc: "1016079724", cargo: "GERENTE GENERAL", tipoContrato: "TÉRMINO INDEFINIDO", ingreso: "2021-04-16", salario: 4380000 },
-  { trabajador: "LEIDY JOHANNA VARGAS ALBINO", tipoDoc: "cédula de ciudadanía", cc: "1072098270", cargo: "COORDINADORA CONTABLE", tipoContrato: "TÉRMINO FIJO", ingreso: "2023-01-08", salario: 2500000 },
+  { trabajador: "LEIDY JOHANNA VARGAS ALBINO", tipoDoc: "cédula de ciudadanía", cc: "1072098270", cargo: "COORDINADORA CONTABLE", tipoContrato: "TÉRMINO FIJO", ingreso: "2023-08-01", salario: 2500000 },
 ];
 
 const CARGOS = ["Atención al cliente","Cocinero","Líder de cocina","Líder de atención al cliente","Coordinador de compras","Coordinador de inventarios","Auxiliar contable","Gerente general","Directora de marketing","Director operativo","Almacenista","Coordinador de mantenimientos","Coordinador de ventas","Coordinadora contable"];
@@ -901,10 +901,10 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         ) : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Fecha</th><th>Trabajador</th><th>CC</th><th>Cargo</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Trabajador</th><th>CC</th><th>Cargo</th><th>Acción</th></tr></thead>
               <tbody>
                 {solicitudes.map((s,i) => (
-                  <tr key={i}><td>{new Date(s.fecha).toLocaleDateString('es-CO')}</td><td>{s.trabajador}</td><td>{s.cc}</td><td>{s.cargo}</td></tr>
+                  <tr key={i}><td>{new Date(s.fecha).toLocaleDateString('es-CO')}</td><td>{s.trabajador}</td><td>{s.cc}</td><td>{s.cargo}</td><td><button className="btn btn-danger btn-sm" onClick={()=>{if(confirm('¿Eliminar esta solicitud?'))setSolicitudes(solicitudes.filter((_,j)=>j!==i));}}>🗑️</button></td></tr>
                 ))}
               </tbody>
             </table>
@@ -1038,7 +1038,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         ) : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Fecha</th><th>Trabajador</th><th>CC</th><th>Cargo</th><th>Contrato</th><th>PDF</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Trabajador</th><th>CC</th><th>Cargo</th><th>Contrato</th><th>PDF</th><th>Acción</th></tr></thead>
               <tbody>
                 {certificados.map((c,i) => (
                   <tr key={i}>
@@ -1048,6 +1048,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
                     <td>{c.cargo}</td>
                     <td><span className="badge badge-blue">{c.tipoContrato}</span></td>
                     <td><button className="btn btn-primary btn-sm" onClick={()=>descargarPDF(c)}>📄 PDF</button></td>
+                    <td><button className="btn btn-danger btn-sm" onClick={()=>{if(confirm('¿Eliminar este certificado?'))setCertificados(certificados.filter((_,j)=>j!==i));}}>🗑️</button></td>
                   </tr>
                 ))}
               </tbody>
