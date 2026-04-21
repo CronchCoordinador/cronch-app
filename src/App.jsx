@@ -62,12 +62,12 @@ const KEYS = {
 
 const loadData = async (key, fallback) => {
   try {
-    const r = await window.storage.get(key);
-    return r ? JSON.parse(r.value) : fallback;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : fallback;
   } catch { return fallback; }
 };
 const saveData = async (key, data) => {
-  try { await window.storage.set(key, JSON.stringify(data)); } catch(e) { console.error(e); }
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { console.error(e); }
 };
 
 // ==================== STYLES ====================
