@@ -277,7 +277,7 @@ function SignaturePad({ onSave, onCancel }) {
       <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: 8 }}>Dibuje su firma:</p>
       <canvas ref={canvasRef} width={400} height={150} className="sig-canvas"
         onMouseDown={start} onMouseMove={draw} onMouseUp={stop} onMouseLeave={stop}
-        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop})}
+        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop}>
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button className="btn btn-secondary btn-sm" onClick={clear}>Limpiar</button>
         <button className="btn btn-primary btn-sm" onClick={() => onSave(canvasRef.current.toDataURL())}>Guardar Firma</button>
@@ -299,9 +299,9 @@ function PhotoCapture({ onCapture }) {
   };
   return (
     <div>
-      <input type="file" accept="image/*" capture="environment" ref={fileRef} onChange={handleFile} style={{ display: 'none' }})}
+      <input type="file" accept="image/*" capture="environment" ref={fileRef} onChange={handleFile} style={{ display: 'none' }} />
       <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current.click()}>📷 Tomar / Subir Foto</button>
-      {preview && <img src={preview} alt="preview" className="photo-preview" style={{ marginTop: 8, display: 'block' }})}}
+      {preview && <img src={preview} alt="preview" className="photo-preview" style={{ marginTop: 8, display: 'block' }} />}
     </div>
   );
 }
@@ -391,14 +391,14 @@ export default function App() {
 
         <main className="main">
           <div className="fade-in">
-            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario})}}
-            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={(e)=>{setEmpleados(e);save(KEYS.empleados,e);}})}}
-            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={(i)=>{setInventario(i);save(KEYS.inventario,i);}} entregas={entregas} setEntregas={(e)=>{setEntregas(e);save(KEYS.entregas,e);}} empleados={empleados} user={user})}}
-            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={(s)=>{setSolicitudes(s);save(KEYS.solicitudes,s);}})}}
-            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={(c)=>{setCertificados(c);save(KEYS.certificados,c);}})}}
-            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={(n)=>{setNovedades(n);save(KEYS.novedades,n);}} empleados={empleados} user={user})}}
-            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={(v)=>{setVacaciones(v);save(KEYS.vacaciones,v);}} novedades={novedades})}}
-            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas})}}
+            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario}} />}}
+            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={(e)=>{setEmpleados(e);save(KEYS.empleados,e);}} />}
+            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={(i)=>{setInventario(i);save(KEYS.inventario,i);}} entregas={entregas} setEntregas={(e)=>{setEntregas(e);save(KEYS.entregas,e);}} empleados={empleados} user={user}} />}
+            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={(s)=>{setSolicitudes(s);save(KEYS.solicitudes,s);}} />}
+            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={(c)=>{setCertificados(c);save(KEYS.certificados,c);}} />}
+            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={(n)=>{setNovedades(n);save(KEYS.novedades,n);}} empleados={empleados} user={user}} />}
+            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={(v)=>{setVacaciones(v);save(KEYS.vacaciones,v);}} novedades={novedades}} />}
+            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas}} />}}
           </div>
         </main>
       </div>
@@ -430,11 +430,11 @@ function LoginPage({ onLogin }) {
           <p style={{ fontSize: 12, color: '#9ca3af', marginTop: -16, marginBottom: 24 }}>Artesanalmente Oblea S.A.S</p>
           <div className="form-group">
             <label>Nombre completo *</label>
-            <input className={errors.nombre ? 'error' : ''} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre")}
+            <input className={errors.nombre ? 'error' : ''} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" />
           </div>
           <div className="form-group">
             <label>Correo electrónico *</label>
-            <input className={errors.email ? 'error' : ''} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com")}
+            <input className={errors.email ? 'error' : ''} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
           </div>
           <button className="btn btn-primary" onClick={handleLogin}>Ingresar</button>
         </div>
@@ -807,8 +807,8 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
 
     // PDF Acta de entrega
     const itemsHTML = entregaItems.map(ei => `<tr><td style="border:1px solid #ccc;padding:8px;">${ei.articulo}</td><td style="border:1px solid #ccc;padding:8px;text-align:center;">${ei.cantidad}</td></tr>`).join('');
-    const firmaImg = entregaForm.firma ? `<img src="${entregaForm.firma}" style="height:60px;")}` : '<p style="margin-top:40px;">_________________________</p>';
-    const fotoImg = entregaForm.foto ? `<div style="margin-top:20px;"><p><strong>Foto:</strong></p><img src="${entregaForm.foto}" style="height:100px;border-radius:8px;")}</div>` : '';
+    const firmaImg = entregaForm.firma ? `<img src="${entregaForm.firma}" style="height:60px;" />` : '<p style="margin-top:40px;">_________________________</p>';
+    const fotoImg = entregaForm.foto ? `<div style="margin-top:20px;"><p><strong>Foto:</strong></p><img src="${entregaForm.foto}" style="height:100px;border-radius:8px;" /></div>` : '';
     const actaHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Acta - ${entregaForm.empleadoNombre}</title><style>@page{size:letter;margin:2cm 2.5cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6}h1{text-align:center;font-size:16pt}h2{text-align:center;font-size:13pt;font-weight:normal;color:#555}table{width:100%;border-collapse:collapse;margin:15px 0}th{background:#2a5cc7;color:#fff;padding:8px;text-align:left}.firmas{display:flex;justify-content:space-between;margin-top:40px}.firma-box{text-align:center;width:45%}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h1>ACTA DE ENTREGA DE DOTACIÓN</h1><h2>Cronch Artesanalmente Oblea S.A.S — NIT 901.481.136-4</h2><hr style="border:1px solid #2a5cc7;margin-bottom:20px"><div><p><strong>Fecha:</strong> ${entregaForm.fecha}</p><p><strong>Empleado:</strong> ${entregaForm.empleadoNombre}</p><p><strong>Documento:</strong> ${entregaForm.empleadoDoc}</p><p><strong>Responsable:</strong> ${entregaForm.responsable}</p></div><table><thead><tr><th>Artículo</th><th style="text-align:center">Cantidad</th></tr></thead><tbody>${itemsHTML}</tbody></table><p style="margin-top:20px;text-align:justify">Yo, <strong>${entregaForm.empleadoNombre}</strong>, identificado(a) con documento N° <strong>${entregaForm.empleadoDoc}</strong>, declaro haber recibido a mi entera satisfacción los elementos de dotación relacionados.</p><div class="firmas"><div class="firma-box"><p><strong>Quien recibe:</strong></p>${firmaImg}<p>${entregaForm.empleadoNombre}</p></div><div class="firma-box"><p><strong>Quien entrega:</strong></p><p style="margin-top:40px">_________________________</p><p>${entregaForm.responsable}</p></div></div>${fotoImg}</body></html>`;
     const ventanaActa = window.open('', '_blank');
     ventanaActa.document.write(actaHTML);
@@ -919,9 +919,9 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
           <div className="card-title">🛒 Registrar Compra de Dotación</div>
           <p style={{fontSize:13,color:'#6b7280',marginBottom:16}}>Al registrar una compra, el stock y precio se actualizan automáticamente.</p>
           <div className="form-grid">
-            <div className="form-group"><label>Nombre del Proveedor *</label><input value={compraForm.proveedor} onChange={e=>setCompraForm({...compraForm,proveedor:e.target.value})})}</div>
-            <div className="form-group"><label>Cédula o NIT *</label><input value={compraForm.cedulaNit} onChange={e=>setCompraForm({...compraForm,cedulaNit:e.target.value})})}</div>
-            <div className="form-group"><label>Fecha</label><input type="date" value={compraForm.fecha} onChange={e=>setCompraForm({...compraForm,fecha:e.target.value})})}</div>
+            <div className="form-group"><label>Nombre del Proveedor *</label><input value={compraForm.proveedor} onChange={e=>setCompraForm({...compraForm,proveedor:e.target.value})} /></div>
+            <div className="form-group"><label>Cédula o NIT *</label><input value={compraForm.cedulaNit} onChange={e=>setCompraForm({...compraForm,cedulaNit:e.target.value})} /></div>
+            <div className="form-group"><label>Fecha</label><input type="date" value={compraForm.fecha} onChange={e=>setCompraForm({...compraForm,fecha:e.target.value})} /></div>
           </div>
           <div style={{marginTop:20}}>
             <p style={{fontWeight:600,fontSize:13,marginBottom:10,color:'#374151'}}>ARTÍCULOS COMPRADOS</p>
@@ -934,11 +934,11 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
                   </select>
                   <div style={{display:'flex',alignItems:'center',gap:4}}>
                     <span style={{fontSize:12,color:'#6b7280'}}>Cant:</span>
-                    <input type="number" min="1" value={ci.cantidad} onChange={e=>{const u=[...compraItems];u[idx].cantidad=Number(e.target.value);setCompraItems(u);}} style={{width:70,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}})}
+                    <input type="number" min="1" value={ci.cantidad} onChange={e=>{const u=[...compraItems];u[idx].cantidad=Number(e.target.value);setCompraItems(u);}} style={{width:70,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}} />
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:4}}>
                     <span style={{fontSize:12,color:'#6b7280'}}>Precio:</span>
-                    <input type="number" min="0" value={ci.precioUnitario} onChange={e=>{const u=[...compraItems];u[idx].precioUnitario=Number(e.target.value);setCompraItems(u);}} style={{width:110,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}})}
+                    <input type="number" min="0" value={ci.precioUnitario} onChange={e=>{const u=[...compraItems];u[idx].precioUnitario=Number(e.target.value);setCompraItems(u);}} style={{width:110,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}} />
                   </div>
                   <span style={{fontSize:13,fontWeight:600,color:'#2a5cc7',minWidth:100}}>{formatCurrency(subtotal)}</span>
                   {compraItems.length > 1 && <button className="btn btn-danger btn-sm" onClick={()=>setCompraItems(compraItems.filter((_,j)=>j!==idx))}>✕</button>}
@@ -998,7 +998,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
             {entregas.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(entregas,[
               {label:'Fecha',key:'fecha'},{label:'Empleado',key:'empleadoNombre'},{label:'Documento',key:'empleadoDoc'},
               {label:'Artículos',key:e=>e.items?.map(i=>i.articulo+'('+i.cantidad+')').join(', ')},{label:'Responsable',key:'responsable'}
-            ],'CRONCH_Entregas')})}}
+            ],'CRONCH_Entregas')} />}}
           </div>
           {entregas.length === 0 ? (
             <div className="empty-state"><div className="icon">📋</div><p>No hay entregas registradas</p></div>
@@ -1018,8 +1018,8 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
                       <td>{e.foto ? '📷' : '—'}</td>
                       <td><button className="btn btn-primary btn-sm" onClick={()=>{
                         const itemsH = e.items?.map(ei => `<tr><td style="border:1px solid #ccc;padding:8px;">${ei.articulo}</td><td style="border:1px solid #ccc;padding:8px;text-align:center;">${ei.cantidad}</td></tr>`).join('');
-                        const fImg = e.firma ? `<img src="${e.firma}" style="height:60px;")}` : '<p style="margin-top:40px;">_________________________</p>';
-                        const pImg = e.foto ? `<div style="margin-top:20px;"><p><strong>Foto:</strong></p><img src="${e.foto}" style="height:100px;border-radius:8px;")}</div>` : '';
+                        const fImg = e.firma ? `<img src="${e.firma}" style="height:60px;" />` : '<p style="margin-top:40px;">_________________________</p>';
+                        const pImg = e.foto ? `<div style="margin-top:20px;"><p><strong>Foto:</strong></p><img src="${e.foto}" style="height:100px;border-radius:8px;" /></div>` : '';
                         const h = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Acta - ${e.empleadoNombre}</title><style>@page{size:letter;margin:2cm 2.5cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6}h1{text-align:center;font-size:16pt}h2{text-align:center;font-size:13pt;font-weight:normal;color:#555}table{width:100%;border-collapse:collapse;margin:15px 0}th{background:#2a5cc7;color:#fff;padding:8px}.firmas{display:flex;justify-content:space-between;margin-top:40px}.firma-box{text-align:center;width:45%}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h1>ACTA DE ENTREGA DE DOTACIÓN</h1><h2>Cronch Artesanalmente Oblea S.A.S — NIT 901.481.136-4</h2><hr style="border:1px solid #2a5cc7;margin-bottom:20px"><div><p><strong>Fecha:</strong> ${e.fecha}</p><p><strong>Empleado:</strong> ${e.empleadoNombre}</p><p><strong>Documento:</strong> ${e.empleadoDoc}</p><p><strong>Responsable:</strong> ${e.responsable}</p></div><table><thead><tr><th>Artículo</th><th>Cantidad</th></tr></thead><tbody>${itemsH}</tbody></table><p style="margin-top:20px;text-align:justify">Yo, <strong>${e.empleadoNombre}</strong>, identificado(a) con documento N° <strong>${e.empleadoDoc}</strong>, declaro haber recibido a mi entera satisfacción los elementos de dotación relacionados.</p><div class="firmas"><div class="firma-box"><p><strong>Quien recibe:</strong></p>${fImg}<p>${e.empleadoNombre}</p></div><div class="firma-box"><p><strong>Quien entrega:</strong></p><p style="margin-top:40px">_________________________</p><p>${e.responsable}</p></div></div>${pImg}</body></html>`;
                         const w = window.open('','_blank'); w.document.write(h); w.document.close(); setTimeout(()=>{w.print();},500);
                       }}>📄 PDF</button></td>
@@ -1046,9 +1046,9 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
                 {empleados.map((em,i) => <option key={i} value={`${em.nombres} ${em.apellidos}`}>{em.nombres} {em.apellidos}</option>)}
               </select>
             </div>
-            <div className="form-group"><label>Documento</label><input value={entregaForm.empleadoDoc} readOnly style={{background:'#f3f4f6'}})}</div>
-            <div className="form-group"><label>Responsable de Entrega *</label><input value={entregaForm.responsable} onChange={e=>setEntregaForm({...entregaForm,responsable:e.target.value})})}</div>
-            <div className="form-group"><label>Fecha</label><input type="date" value={entregaForm.fecha} onChange={e=>setEntregaForm({...entregaForm,fecha:e.target.value})})}</div>
+            <div className="form-group"><label>Documento</label><input value={entregaForm.empleadoDoc} readOnly style={{background:'#f3f4f6'}} /></div>
+            <div className="form-group"><label>Responsable de Entrega *</label><input value={entregaForm.responsable} onChange={e=>setEntregaForm({...entregaForm,responsable:e.target.value})} /></div>
+            <div className="form-group"><label>Fecha</label><input type="date" value={entregaForm.fecha} onChange={e=>setEntregaForm({...entregaForm,fecha:e.target.value})} /></div>
           </div>
 
           <div style={{marginTop:20}}>
@@ -1064,7 +1064,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
                       return <option key={it} style={{color:st===0?'#dc2626':'inherit'}}>{it} {st===0?'(SIN STOCK)':''}</option>;
                     })}
                   </select>
-                  <input type="number" min="1" value={ei.cantidad} onChange={e=>{const u=[...entregaItems];u[idx].cantidad=Number(e.target.value);setEntregaItems(u);}} style={{width:70,padding:'8px',border:`1.5px solid ${sinStock?'#dc2626':'#e5e7eb'}`,borderRadius:6}})}
+                  <input type="number" min="1" value={ei.cantidad} onChange={e=>{const u=[...entregaItems];u[idx].cantidad=Number(e.target.value);setEntregaItems(u);}} style={{width:70,padding:'8px',border:`1.5px solid ${sinStock?'#dc2626':'#e5e7eb'}`,borderRadius:6}} />
                   <span style={{fontSize:12,color:sinStock?'#dc2626':'#6b7280',minWidth:90}}>Stock: {stockDisponible}</span>
                   {sinStock && <span style={{fontSize:11,color:'#dc2626',fontWeight:700}}>❌ Sin existencia</span>}
                   {entregaItems.length > 1 && <button className="btn btn-danger btn-sm" onClick={()=>setEntregaItems(entregaItems.filter((_,j)=>j!==idx))}>✕</button>}
@@ -1078,7 +1078,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
             <div>
               <p style={{fontWeight:600,fontSize:13,marginBottom:8,color:'#374151'}}>FIRMA DIGITAL</p>
               {entregaForm.firma ? (
-                <div><img src={entregaForm.firma} alt="firma" style={{height:60,border:'1px solid #e5e7eb',borderRadius:6}})}<button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={()=>setEntregaForm({...entregaForm,firma:null})}>Cambiar</button></div>
+                <div><img src={entregaForm.firma} alt="firma" style={{height:60,border:'1px solid #e5e7eb',borderRadius:6}} /><button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={()=>setEntregaForm({...entregaForm,firma:null})}>Cambiar</button></div>
               ) : showSigPad ? (
                 <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)})}
               ) : (
@@ -1135,7 +1135,7 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         <div style={{display:'flex',gap:10,alignItems:'flex-end',flexWrap:'wrap'}}>
           <div className="form-group" style={{flex:1,minWidth:200}}>
             <label>Número de Cédula</label>
-            <input value={cc} onChange={e=>setCc(e.target.value)} placeholder="Ej: 1070615687")}
+            <input value={cc} onChange={e=>setCc(e.target.value)} placeholder="Ej: 1070615687" />
           </div>
           <button className="btn btn-primary" onClick={buscar} style={{height:42}}>Buscar</button>
         </div>
@@ -1161,7 +1161,7 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         <div className="card-title">Solicitudes Realizadas ({solicitudes.length})
           {solicitudes.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(solicitudes,[
             {label:'Fecha',key:s=>new Date(s.fecha).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'}
-          ],'CRONCH_Solicitudes')})}}
+          ],'CRONCH_Solicitudes')} />}}
         </div>
         {solicitudes.length === 0 ? (
           <div className="empty-state"><div className="icon">📋</div><p>No hay solicitudes registradas</p></div>
@@ -1303,7 +1303,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         <div className="card-title">Certificados Generados ({certificados.length})
           {certificados.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(certificados,[
             {label:'Fecha',key:c=>new Date(c.fechaGeneracion).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'},{label:'Contrato',key:'tipoContrato'},{label:'Salario',key:'salario'}
-          ],'CRONCH_Certificados')})}}
+          ],'CRONCH_Certificados')} />}}
         </div>
         {certificados.length === 0 ? (
           <div className="empty-state"><div className="icon">📄</div><p>No se han generado certificados</p></div>
@@ -1489,19 +1489,19 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
             <div className="form-group"><label>Mes</label>
               <select value={form.mes} onChange={e=>setForm({...form,mes:e.target.value})}>{MESES.map(m=><option key={m}>{m}</option>)}</select>
             </div>
-            <div className="form-group"><label>Fecha Inicio *</label><input type="date" value={form.fechaInicio} onChange={e=>setForm({...form,fechaInicio:e.target.value})})}</div>
-            <div className="form-group"><label>Fecha Fin *</label><input type="date" value={form.fechaFin} onChange={e=>setForm({...form,fechaFin:e.target.value})})}</div>
-            <div className="form-group"><label>Quien reporta *</label><input value={form.reportadoPor} onChange={e=>setForm({...form,reportadoPor:e.target.value})})}</div>
+            <div className="form-group"><label>Fecha Inicio *</label><input type="date" value={form.fechaInicio} onChange={e=>setForm({...form,fechaInicio:e.target.value})} /></div>
+            <div className="form-group"><label>Fecha Fin *</label><input type="date" value={form.fechaFin} onChange={e=>setForm({...form,fechaFin:e.target.value})} /></div>
+            <div className="form-group"><label>Quien reporta *</label><input value={form.reportadoPor} onChange={e=>setForm({...form,reportadoPor:e.target.value})} /></div>
           </div>
           {form.fechaInicio && form.fechaFin && new Date(form.fechaFin) >= new Date(form.fechaInicio) && (
             <div className="alert alert-info" style={{marginTop:12}}>📅 Duración: <strong>{Math.ceil((new Date(form.fechaFin) - new Date(form.fechaInicio)) / (1000*60*60*24)) + 1} días</strong></div>
           )}
           <div className="form-group" style={{marginTop:16}}>
             <label>Observaciones</label>
-            <textarea rows={3} value={form.observacion} onChange={e=>setForm({...form,observacion:e.target.value})} placeholder="Detalles adicionales..." style={{width:'100%',padding:10,border:'1.5px solid #e5e7eb',borderRadius:8,fontFamily:'DM Sans'}})}
+            <textarea rows={3} value={form.observacion} onChange={e=>setForm({...form,observacion:e.target.value})} placeholder="Detalles adicionales..." style={{width:'100%',padding:10,border:'1.5px solid #e5e7eb',borderRadius:8,fontFamily:'DM Sans'}} />
           </div>
           <div style={{marginTop:12}}>
-            <input type="file" accept="image/*,.pdf" ref={fileRef} onChange={handleFile} style={{display:'none'}})}
+            <input type="file" accept="image/*,.pdf" ref={fileRef} onChange={handleFile} style={{display:'none'}} />
             <button className="btn btn-secondary btn-sm" onClick={()=>fileRef.current.click()}>📎 Adjuntar archivo (PDF/Foto, máx 5MB)</button>
             {form.adjunto && (
               <div style={{marginTop:8,display:'flex',alignItems:'center',gap:8}}>
@@ -1526,7 +1526,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
               <h3 style={{margin:0}}>{visorAdjunto.name}</h3>
               <button className="btn btn-secondary btn-sm" onClick={()=>setVisorAdjunto(null)}>✕ Cerrar</button>
             </div>
-            <img src={visorAdjunto.data} alt={visorAdjunto.name} style={{maxWidth:'100%',maxHeight:'70vh',borderRadius:8,border:'1px solid #e5e7eb'}})}
+            <img src={visorAdjunto.data} alt={visorAdjunto.name} style={{maxWidth:'100%',maxHeight:'70vh',borderRadius:8,border:'1px solid #e5e7eb'}} />
           </div>
         </div>
       )}
@@ -1820,8 +1820,8 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
                 {VACACIONES_DATA.map((v,i)=><option key={i} value={v.nombre}>{v.nombre} ({v.diasPendientes} días pend.)</option>)}
               </select>
             </div>
-            <div className="form-group"><label>Fecha Inicio *</label><input type="date" value={form.fechaInicio} onChange={e=>setForm({...form,fechaInicio:e.target.value})})}</div>
-            <div className="form-group"><label>Fecha Fin *</label><input type="date" value={form.fechaFin} onChange={e=>setForm({...form,fechaFin:e.target.value})})}</div>
+            <div className="form-group"><label>Fecha Inicio *</label><input type="date" value={form.fechaInicio} onChange={e=>setForm({...form,fechaInicio:e.target.value})} /></div>
+            <div className="form-group"><label>Fecha Fin *</label><input type="date" value={form.fechaFin} onChange={e=>setForm({...form,fechaFin:e.target.value})} /></div>
             <div className="form-group"><label>Estado</label>
               <select value={form.estado} onChange={e=>setForm({...form,estado:e.target.value})}>
                 <option>Programada</option><option>Disfrutada</option><option>Cancelada</option>
@@ -1833,7 +1833,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
           )}
           <div className="form-group" style={{marginTop:12}}>
             <label>Observaciones</label>
-            <textarea rows={2} value={form.observacion} onChange={e=>setForm({...form,observacion:e.target.value})} placeholder="Notas adicionales..." style={{width:'100%',padding:10,border:'1.5px solid #e5e7eb',borderRadius:8,fontFamily:'DM Sans'}})}
+            <textarea rows={2} value={form.observacion} onChange={e=>setForm({...form,observacion:e.target.value})} placeholder="Notas adicionales..." style={{width:'100%',padding:10,border:'1.5px solid #e5e7eb',borderRadius:8,fontFamily:'DM Sans'}} />
           </div>
           <div style={{marginTop:16,display:'flex',gap:10}}>
             <button className="btn btn-primary" onClick={submitVacacion}>Registrar Vacaciones</button>
@@ -1846,7 +1846,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
         <div className="card-title">Estado de Vacaciones por Empleado</div>
         <div className="search-bar" style={{marginBottom:12}}>
           <span className="search-icon">🔍</span>
-          <input placeholder="Buscar empleado..." value={search} onChange={e=>setSearch(e.target.value)})}
+          <input placeholder="Buscar empleado..." value={search} onChange={e=>setSearch(e.target.value)} />
         </div>
         <div className="table-wrap">
           <table>
@@ -1863,7 +1863,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
                     <td style={{textAlign:'center'}}>
                       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
                         <strong style={{color:urg.color,fontSize:16}}>{e.pendientesActuales}</strong>
-                        <BarraVacaciones pendientes={e.pendientesActuales} total={Math.max(e.pendientesActuales, 15)})}
+                        <BarraVacaciones pendientes={e.pendientesActuales} total={Math.max(e.pendientesActuales, 15)} />
                       </div>
                     </td>
                     <td style={{textAlign:'center'}}>{e.diasProgramados > 0 ? <span className="badge badge-blue">{e.diasProgramados} días</span> : <span style={{color:'#9ca3af'}}>—</span>}</td>
@@ -1928,7 +1928,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
                     <span style={{fontSize:24,fontWeight:800,color:urg.color}}>{e.pendientesActuales}</span>
                     <span style={{fontSize:11,color:'#6b7280',marginLeft:4}}>días pendientes</span>
                   </div>
-                  <BarraVacaciones pendientes={e.pendientesActuales} total={Math.max(e.pendientesActuales, 15)})}
+                  <BarraVacaciones pendientes={e.pendientesActuales} total={Math.max(e.pendientesActuales, 15)} />
                 </div>
               </div>
             );
