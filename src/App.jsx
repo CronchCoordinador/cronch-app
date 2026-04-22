@@ -601,24 +601,18 @@ function RegistroPanel({ empleados, setEmpleados }) {
 
   const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
   
-  const handlers = useRef({});
-  const u = (field) => {
-    if (!handlers.current[field]) {
-      handlers.current[field] = (e) => {
-        const val = e.target.value;
-        setForm(prev => {
-          const updated = {...prev, [field]: val};
-          if (field === 'fechaNac' && val) {
-            const birth = new Date(val); const t = new Date();
-            let age = t.getFullYear() - birth.getFullYear();
-            if (t.getMonth() < birth.getMonth() || (t.getMonth() === birth.getMonth() && t.getDate() < birth.getDate())) age--;
-            updated.edad = String(age);
-          }
-          return updated;
-        });
-      };
-    }
-    return handlers.current[field];
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => {
+      const updated = {...prev, [name]: value};
+      if (name === 'fechaNac' && value) {
+        const birth = new Date(value); const t = new Date();
+        let age = t.getFullYear() - birth.getFullYear();
+        if (t.getMonth() < birth.getMonth() || (t.getMonth() === birth.getMonth() && t.getDate() < birth.getDate())) age--;
+        updated.edad = String(age);
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = () => {
@@ -637,7 +631,9 @@ function RegistroPanel({ empleados, setEmpleados }) {
   const handleEdit = (i) => { setForm({...empleados[i]}); setEditIdx(i); setShowForm(true); };
   const handleDelete = (i) => { if (confirm('¿Eliminar este empleado?')) setEmpleados(empleados.filter((_,j) => j !== i)); };
   const filtered = empleados.filter(e => { const s = search.toLowerCase(); return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s); });
-  const ec = (f) => errors[f] ? 'error' : '';
+
+  const I = (label, name, type) => <div className="form-group"><label>{label}</label><input type={type||'text'} name={name} value={form[name]||''} onChange={onChange} /></div>;
+  const S = (label, name, options) => <div className="form-group"><label>{label}</label><select name={name} value={form[name]||''} onChange={onChange}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
 
   return (
     <div>
@@ -650,80 +646,80 @@ function RegistroPanel({ empleados, setEmpleados }) {
       </div>
 
       {showForm && (
-        <div className="card fade-in">
+        <div className="card">
           <div className="card-title">{editIdx !== null ? '✏️ Editar Empleado' : '👤 Registrar Nuevo Empleado'}</div>
           
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
-            <div className="form-group"><label>Tipo Documento *</label><select className={ec('tipoDoc')} value={form.tipoDoc} onChange={u('tipoDoc')}>{TIPOS_DOC.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Nº Documento *</label><input className={ec('documento')} value={form.documento} onChange={u('documento')} /></div>
-            <div className="form-group"><label>Ciudad de Expedición *</label><input className={ec('ciudadExpedicion')} value={form.ciudadExpedicion} onChange={u('ciudadExpedicion')} /></div>
-            <div className="form-group"><label>Fecha de Expedición *</label><input type="date" className={ec('fechaExpedicion')} value={form.fechaExpedicion} onChange={u('fechaExpedicion')} /></div>
-            <div className="form-group"><label>Apellidos *</label><input className={ec('apellidos')} value={form.apellidos} onChange={u('apellidos')} /></div>
-            <div className="form-group"><label>Nombres *</label><input className={ec('nombres')} value={form.nombres} onChange={u('nombres')} /></div>
+            {S("Tipo Documento *","tipoDoc",TIPOS_DOC)}
+            {I("Nº Documento *","documento")}
+            {I("Ciudad de Expedición *","ciudadExpedicion")}
+            {I("Fecha de Expedición *","fechaExpedicion","date")}
+            {I("Apellidos *","apellidos")}
+            {I("Nombres *","nombres")}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
           <div className="form-grid">
-            <div className="form-group"><label>Fecha de Nacimiento *</label><input type="date" className={ec('fechaNac')} value={form.fechaNac} onChange={u('fechaNac')} /></div>
+            {I("Fecha de Nacimiento *","fechaNac","date")}
             <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
-            <div className="form-group"><label>Lugar de Nacimiento *</label><input className={ec('lugarNacimiento')} value={form.lugarNacimiento} onChange={u('lugarNacimiento')} /></div>
-            <div className="form-group"><label>Género *</label><select value={form.genero} onChange={u('genero')}>{GENEROS.map(g=><option key={g}>{g}</option>)}</select></div>
-            <div className="form-group"><label>Estado Civil *</label><select value={form.estadoCivil} onChange={u('estadoCivil')}>{ESTADOS_CIVILES.map(x=><option key={x}>{x}</option>)}</select></div>
-            <div className="form-group"><label>RH *</label><select value={form.rh} onChange={u('rh')}>{RH_LIST.map(r=><option key={r}>{r}</option>)}</select></div>
-            <div className="form-group"><label>Nivel Educativo *</label><select value={form.nivelEducativo} onChange={u('nivelEducativo')}>{NIVEL_EDUCATIVO.map(n=><option key={n}>{n}</option>)}</select></div>
+            {I("Lugar de Nacimiento *","lugarNacimiento")}
+            {S("Género *","genero",GENEROS)}
+            {S("Estado Civil *","estadoCivil",ESTADOS_CIVILES)}
+            {S("RH *","rh",RH_LIST)}
+            {S("Nivel Educativo *","nivelEducativo",NIVEL_EDUCATIVO)}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
           <div className="form-grid">
-            <div className="form-group"><label>Dirección de Vivienda *</label><input className={ec('direccion')} value={form.direccion} onChange={u('direccion')} /></div>
-            <div className="form-group"><label>Barrio *</label><input className={ec('barrio')} value={form.barrio} onChange={u('barrio')} /></div>
-            <div className="form-group"><label>Ciudad *</label><input className={ec('ciudad')} value={form.ciudad} onChange={u('ciudad')} /></div>
-            <div className="form-group"><label>Teléfono *</label><input className={ec('telefono')} value={form.telefono} onChange={u('telefono')} /></div>
-            <div className="form-group"><label>Correo Electrónico *</label><input type="email" className={ec('correo')} value={form.correo} onChange={u('correo')} /></div>
+            {I("Dirección de Vivienda *","direccion")}
+            {I("Barrio *","barrio")}
+            {I("Ciudad *","ciudad")}
+            {I("Teléfono *","telefono")}
+            {I("Correo Electrónico *","correo","email")}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
           <div className="form-grid">
-            <div className="form-group"><label>Nombre del Contacto *</label><input className={ec('contactoEmergenciaNombre')} value={form.contactoEmergenciaNombre} onChange={u('contactoEmergenciaNombre')} /></div>
-            <div className="form-group"><label>Número de Contacto *</label><input className={ec('contactoEmergenciaNumero')} value={form.contactoEmergenciaNumero} onChange={u('contactoEmergenciaNumero')} /></div>
-            <div className="form-group"><label>Parentesco *</label><input className={ec('contactoEmergenciaParentesco')} value={form.contactoEmergenciaParentesco} onChange={u('contactoEmergenciaParentesco')} /></div>
+            {I("Nombre del Contacto *","contactoEmergenciaNombre")}
+            {I("Número de Contacto *","contactoEmergenciaNumero")}
+            {I("Parentesco *","contactoEmergenciaParentesco")}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
           <div className="form-grid">
-            <div className="form-group"><label>Cargo *</label><select value={form.cargo} onChange={u('cargo')}>{CARGOS.map(c=><option key={c}>{c}</option>)}</select></div>
-            <div className="form-group"><label>Sub Dirección *</label><select value={form.subDireccion} onChange={u('subDireccion')}>{SUB_DIRECCIONES.map(s=><option key={s}>{s}</option>)}</select></div>
-            <div className="form-group"><label>Sede *</label><select value={form.sede} onChange={u('sede')}>{SEDES.map(s=><option key={s}>{s}</option>)}</select></div>
-            <div className="form-group"><label>Tipo Vinculación *</label><select value={form.tipoVinculacion} onChange={u('tipoVinculacion')}>{TIPOS_VINCULACION.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Tipo de Contrato *</label><select value={form.tipoContrato} onChange={u('tipoContrato')}>{TIPOS_CONTRATO.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Salario *</label><input type="number" className={ec('salario')} value={form.salario} onChange={u('salario')} /></div>
-            <div className="form-group"><label>Fecha de Ingreso *</label><input type="date" className={ec('fechaIngreso')} value={form.fechaIngreso} onChange={u('fechaIngreso')} /></div>
-            <div className="form-group"><label>Fecha Terminación Contrato</label><input type="date" value={form.fechaTerminacion||''} onChange={u('fechaTerminacion')} /></div>
-            <div className="form-group"><label>Fecha de Retiro</label><input type="date" value={form.fechaRetiro||''} onChange={u('fechaRetiro')} /></div>
+            {S("Cargo *","cargo",CARGOS)}
+            {S("Sub Dirección *","subDireccion",SUB_DIRECCIONES)}
+            {S("Sede *","sede",SEDES)}
+            {S("Tipo Vinculación *","tipoVinculacion",TIPOS_VINCULACION)}
+            {S("Tipo de Contrato *","tipoContrato",TIPOS_CONTRATO)}
+            {I("Salario *","salario","number")}
+            {I("Fecha de Ingreso *","fechaIngreso","date")}
+            {I("Fecha Terminación Contrato","fechaTerminacion","date")}
+            {I("Fecha de Retiro","fechaRetiro","date")}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏥 SEGURIDAD SOCIAL</p>
           <div className="form-grid">
-            <div className="form-group"><label>EPS *</label><select value={form.eps} onChange={u('eps')}>{EPS_LIST.map(x=><option key={x}>{x}</option>)}</select></div>
-            <div className="form-group"><label>Fondo de Pensión *</label><select value={form.pension} onChange={u('pension')}>{PENSION_LIST.map(p=><option key={p}>{p}</option>)}</select></div>
-            <div className="form-group"><label>Cesantías *</label><select value={form.cesantias} onChange={u('cesantias')}>{CESANTIAS_LIST.map(c=><option key={c}>{c}</option>)}</select></div>
-            <div className="form-group"><label>ARL *</label><select value={form.arl} onChange={u('arl')}>{ARL_LIST.map(a=><option key={a}>{a}</option>)}</select></div>
-            <div className="form-group"><label>Caja de Compensación *</label><select value={form.cajaCompensacion} onChange={u('cajaCompensacion')}>{CAJA_COMP_LIST.map(c=><option key={c}>{c}</option>)}</select></div>
+            {S("EPS *","eps",EPS_LIST)}
+            {S("Fondo de Pensión *","pension",PENSION_LIST)}
+            {S("Cesantías *","cesantias",CESANTIAS_LIST)}
+            {S("ARL *","arl",ARL_LIST)}
+            {S("Caja de Compensación *","cajaCompensacion",CAJA_COMP_LIST)}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
           <div className="form-grid">
-            <div className="form-group"><label>Cuenta Bancaria *</label><select value={form.banco} onChange={u('banco')}>{BANCOS.map(b=><option key={b}>{b}</option>)}</select></div>
-            <div className="form-group"><label>Número de Cuenta *</label><input className={ec('numeroCuenta')} value={form.numeroCuenta} onChange={u('numeroCuenta')} /></div>
+            {S("Cuenta Bancaria *","banco",BANCOS)}
+            {I("Número de Cuenta *","numeroCuenta")}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
           <div className="form-grid">
-            <div className="form-group"><label>Talla Pantalón *</label><select value={form.tallaPantalon} onChange={u('tallaPantalon')}>{TALLAS_PANTALON.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Talla Chaqueta *</label><select value={form.tallaChaqueta} onChange={u('tallaChaqueta')}>{TALLAS_CHAQUETA.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Talla Camisa *</label><select value={form.tallaCamisa} onChange={u('tallaCamisa')}>{TALLAS_CAMISA.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Talla Calzado *</label><select value={form.tallaZapatos} onChange={u('tallaZapatos')}>{TALLAS_ZAPATOS.map(t=><option key={t}>{t}</option>)}</select></div>
+            {S("Talla Pantalón *","tallaPantalon",TALLAS_PANTALON)}
+            {S("Talla Chaqueta *","tallaChaqueta",TALLAS_CHAQUETA)}
+            {S("Talla Camisa *","tallaCamisa",TALLAS_CAMISA)}
+            {S("Talla Calzado *","tallaZapatos",TALLAS_ZAPATOS)}
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
@@ -766,6 +762,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
     </div>
   );
 }
+
 
 // ==================== DOTACIÓN (INVENTARIO + ENTREGAS + COMPRAS) ====================
 function DotacionPanel({ inventario, setInventario, entregas, setEntregas, empleados, user }) {
