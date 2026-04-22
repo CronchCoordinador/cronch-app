@@ -1374,13 +1374,16 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
   const empty = { tipo:'Incapacidades',empleado:'',mes:MESES[0],fechaInicio:'',fechaFin:'',observacion:'',reportadoPor:user?.nombre||'',adjunto:null };
   const [form, setForm] = useState({...empty});
   const [showForm, setShowForm] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [visorAdjunto, setVisorAdjunto] = useState(null);
   const fileRef = useRef(null);
 
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('El archivo no debe superar 5MB'); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => setForm(p => ({...p, adjunto: { name: f.name, data: ev.target.result }}));
+    reader.onload = (ev) => setForm(p => ({...p, adjunto: { name: f.name, type: f.type, data: ev.target.result }}));
     reader.readAsDataURL(f);
   };
 
@@ -1388,23 +1391,125 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
     if (!form.empleado || !form.fechaInicio || !form.fechaFin || !form.reportadoPor) {
       alert('Complete todos los campos obligatorios'); return;
     }
-    setNovedades([...novedades, { ...form, id: Date.now(), fecha: new Date().toISOString() }]);
+    if (new Date(form.fechaFin) < new Date(form.fechaInicio)) {
+      alert('La fecha fin debe ser posterior a la fecha inicio'); return;
+    }
+    const dias = Math.ceil((new Date(form.fechaFin) - new Date(form.fechaInicio)) / (1000*60*60*24)) + 1;
+    setNovedades([...novedades, { ...form, dias, id: Date.now(), fecha: new Date().toISOString() }]);
     sendToSheet('addNovedad', form);
     setForm({...empty});
     setShowForm(false);
     alert('✅ Novedad registrada correctamente');
   };
 
+  const eliminarNovedad = (id) => {
+    if (confirm('¿Eliminar esta novedad?')) setNovedades(novedades.filter(n => n.id !== id));
+  };
+
+  const verAdjunto = (adjunto) => {
+    if (!adjunto || !adjunto.data) { alert('No hay archivo adjunto'); return; }
+    if (adjunto.type === 'application/pdf' || adjunto.name?.endsWith('.pdf')) {
+      const w = window.open('', '_blank');
+      w.document.write(`<iframe src="${adjunto.data}" style="width:100%;height:100vh;border:none;"></iframe>`);
+      w.document.close();
+    } else {
+      setVisorAdjunto(adjunto);
+    }
+  };
+
+  // KPI Data
+  const novedadesPorTipo = {};
+  TIPOS_NOVEDAD.forEach(t => { novedadesPorTipo[t] = 0; });
+  novedades.forEach(n => { if (novedadesPorTipo[n.tipo] !== undefined) novedadesPorTipo[n.tipo]++; });
+  const totalNovedades = novedades.length;
+
+  const coloresTipo = {
+    'Incapacidades': '#dc2626', 'Vacaciones': '#2563eb', 'Retiro de empleado': '#7c3aed',
+    'Permiso remunerado': '#059669', 'Inasistencia al trabajo': '#d97706',
+    'Licencia': '#0891b2', 'Justificada': '#16a34a', 'Otro': '#6b7280'
+  };
+
+  const novedadesPorMes = {};
+  MESES.forEach(m => { novedadesPorMes[m] = 0; });
+  novedades.forEach(n => { if (novedadesPorMes[n.mes] !== undefined) novedadesPorMes[n.mes]++; });
+  const maxMes = Math.max(...Object.values(novedadesPorMes), 1);
+
+  const filtradas = filtroTipo === 'todos' ? novedades : novedades.filter(n => n.tipo === filtroTipo);
+
   return (
     <div>
-      <div className="page-header"><h1>Novedades del Personal</h1><p>Registro de incapacidades, vacaciones, permisos y más</p></div>
-      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)} >{showForm ? '✕ Cerrar' : '+ Nueva Novedad'}</button>
-        <ExportButton label="Exportar Novedades" onClick={()=>exportToCSV(novedades,[
-          {label:'Tipo',key:'tipo'},{label:'Empleado',key:'empleado'},{label:'Mes',key:'mes'},{label:'Fecha Inicio',key:'fechaInicio'},{label:'Fecha Fin',key:'fechaFin'},{label:'Observación',key:'observacion'},{label:'Reportado Por',key:'reportadoPor'}
-        ],'CRONCH_Novedades')} />
+      <div className="page-header"><h1>Novedades del Personal</h1><p>Registro y análisis de incapacidades, vacaciones, permisos y más</p></div>
+
+      {/* KPI Cards */}
+      <div className="stats-grid">
+        <div className="stat-card blue"><div className="stat-label">Total Novedades</div><div className="stat-value">{totalNovedades}</div></div>
+        {TIPOS_NOVEDAD.filter(t => novedadesPorTipo[t] > 0).slice(0, 3).map(t => (
+          <div key={t} className="stat-card" style={{borderLeft:`4px solid ${coloresTipo[t]}`}}>
+            <div className="stat-label">{t}</div>
+            <div className="stat-value" style={{color:coloresTipo[t]}}>{novedadesPorTipo[t]}</div>
+          </div>
+        ))}
       </div>
 
+      {/* Gráfico de barras por tipo */}
+      {totalNovedades > 0 && (
+        <div className="card">
+          <div className="card-title">📊 Novedades por Tipo</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {TIPOS_NOVEDAD.map(tipo => {
+              const cant = novedadesPorTipo[tipo];
+              const pct = totalNovedades > 0 ? (cant / totalNovedades) * 100 : 0;
+              return (
+                <div key={tipo} style={{display:'flex',alignItems:'center',gap:10}}>
+                  <span style={{fontSize:12,width:160,textAlign:'right',color:'#374151',fontWeight:500}}>{tipo}</span>
+                  <div style={{flex:1,height:28,background:'#f3f4f6',borderRadius:6,overflow:'hidden',position:'relative'}}>
+                    <div style={{width:`${pct}%`,height:'100%',background:coloresTipo[tipo],borderRadius:6,transition:'width 0.5s',minWidth:cant>0?30:0,display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:8}}>
+                      {cant > 0 && <span style={{color:'#fff',fontSize:11,fontWeight:700}}>{cant}</span>}
+                    </div>
+                  </div>
+                  <span style={{fontSize:12,color:'#6b7280',width:40,textAlign:'right'}}>{Math.round(pct)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Gráfico por mes */}
+      {totalNovedades > 0 && (
+        <div className="card">
+          <div className="card-title">📅 Novedades por Mes</div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:6,height:160,padding:'0 10px'}}>
+            {MESES.map(mes => {
+              const cant = novedadesPorMes[mes];
+              const pct = (cant / maxMes) * 100;
+              return (
+                <div key={mes} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                  <span style={{fontSize:11,fontWeight:700,color:cant>0?'#2a5cc7':'#d1d5db'}}>{cant > 0 ? cant : ''}</span>
+                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}} />
+                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Botones de acción */}
+      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap',alignItems:'center'}}>
+        <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Nueva Novedad'}</button>
+        <ExportButton label="Exportar Novedades" onClick={()=>exportToCSV(novedades,[
+          {label:'Tipo',key:'tipo'},{label:'Empleado',key:'empleado'},{label:'Mes',key:'mes'},{label:'Fecha Inicio',key:'fechaInicio'},{label:'Fecha Fin',key:'fechaFin'},{label:'Días',key:'dias'},{label:'Observación',key:'observacion'},{label:'Reportado Por',key:'reportadoPor'},{label:'Adjunto',key:n=>n.adjunto?.name||''}
+        ],'CRONCH_Novedades')} />
+        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+          <button style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:'1.5px solid #e5e7eb',background:filtroTipo==='todos'?'#dbe8fe':'#fff',color:filtroTipo==='todos'?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo('todos')}>Todos ({totalNovedades})</button>
+          {TIPOS_NOVEDAD.filter(t=>novedadesPorTipo[t]>0).map(t=>(
+            <button key={t} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroTipo===t?coloresTipo[t]:'#e5e7eb'}`,background:filtroTipo===t?coloresTipo[t]+'20':'#fff',color:filtroTipo===t?coloresTipo[t]:'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo(t)}>{t} ({novedadesPorTipo[t]})</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Formulario */}
       {showForm && (
         <div className="card fade-in">
           <div className="card-title">Registrar Novedad</div>
@@ -1425,40 +1530,70 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
             <div className="form-group"><label>Fecha Fin *</label><input type="date" value={form.fechaFin} onChange={e=>setForm({...form,fechaFin:e.target.value})} /></div>
             <div className="form-group"><label>Quien reporta *</label><input value={form.reportadoPor} onChange={e=>setForm({...form,reportadoPor:e.target.value})} /></div>
           </div>
+          {form.fechaInicio && form.fechaFin && new Date(form.fechaFin) >= new Date(form.fechaInicio) && (
+            <div className="alert alert-info" style={{marginTop:12}}>📅 Duración: <strong>{Math.ceil((new Date(form.fechaFin) - new Date(form.fechaInicio)) / (1000*60*60*24)) + 1} días</strong></div>
+          )}
           <div className="form-group" style={{marginTop:16}}>
             <label>Observaciones</label>
             <textarea rows={3} value={form.observacion} onChange={e=>setForm({...form,observacion:e.target.value})} placeholder="Detalles adicionales..." style={{width:'100%',padding:10,border:'1.5px solid #e5e7eb',borderRadius:8,fontFamily:'DM Sans'}} />
           </div>
           <div style={{marginTop:12}}>
             <input type="file" accept="image/*,.pdf" ref={fileRef} onChange={handleFile} style={{display:'none'}} />
-            <button className="btn btn-secondary btn-sm" onClick={()=>fileRef.current.click()}>📎 Adjuntar archivo (PDF/Foto)</button>
-            {form.adjunto && <span style={{marginLeft:10,fontSize:13,color:'#22c55e'}}>✅ {form.adjunto.name}</span>}
+            <button className="btn btn-secondary btn-sm" onClick={()=>fileRef.current.click()}>📎 Adjuntar archivo (PDF/Foto, máx 5MB)</button>
+            {form.adjunto && (
+              <div style={{marginTop:8,display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:13,color:'#22c55e'}}>✅ {form.adjunto.name}</span>
+                <button className="btn btn-secondary btn-sm" onClick={()=>verAdjunto(form.adjunto)}>👁️ Ver</button>
+                <button className="btn btn-danger btn-sm" onClick={()=>setForm({...form,adjunto:null})}>✕ Quitar</button>
+              </div>
+            )}
           </div>
           <div style={{marginTop:20,display:'flex',gap:10}}>
-            <button className="btn btn-primary" onClick={submit}>Registrar Novedad</button>
+            <button className="btn btn-primary" onClick={submit}>✅ Registrar Novedad</button>
             <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancelar</button>
           </div>
         </div>
       )}
 
+      {/* Visor de imagen */}
+      {visorAdjunto && (
+        <div className="modal-overlay" onClick={()=>setVisorAdjunto(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:700,textAlign:'center'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h3 style={{margin:0}}>{visorAdjunto.name}</h3>
+              <button className="btn btn-secondary btn-sm" onClick={()=>setVisorAdjunto(null)}>✕ Cerrar</button>
+            </div>
+            <img src={visorAdjunto.data} alt={visorAdjunto.name} style={{maxWidth:'100%',maxHeight:'70vh',borderRadius:8,border:'1px solid #e5e7eb'}} />
+          </div>
+        </div>
+      )}
+
+      {/* Tabla de novedades */}
       <div className="card">
-        <div className="card-title">Novedades Registradas ({novedades.length})</div>
-        {novedades.length === 0 ? (
-          <div className="empty-state"><div className="icon">📝</div><p>No hay novedades registradas</p></div>
+        <div className="card-title">Novedades Registradas ({filtradas.length}{filtroTipo!=='todos' ? ` de ${totalNovedades}` : ''})</div>
+        {filtradas.length === 0 ? (
+          <div className="empty-state"><div className="icon">📝</div><p>{filtroTipo==='todos'?'No hay novedades registradas':`No hay novedades de tipo "${filtroTipo}"`}</p></div>
         ) : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Tipo</th><th>Empleado</th><th>Mes</th><th>Inicio</th><th>Fin</th><th>Reportado por</th><th>Adjunto</th></tr></thead>
+              <thead><tr><th>Tipo</th><th>Empleado</th><th>Mes</th><th>Inicio</th><th>Fin</th><th>Días</th><th>Observación</th><th>Reportado</th><th>Adjunto</th><th>Acciones</th></tr></thead>
               <tbody>
-                {novedades.map((n,i) => (
+                {filtradas.map((n,i) => (
                   <tr key={i}>
-                    <td><span className="badge badge-blue">{n.tipo}</span></td>
+                    <td><span style={{display:'inline-block',padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:600,background:coloresTipo[n.tipo]+'20',color:coloresTipo[n.tipo],border:`1px solid ${coloresTipo[n.tipo]}40`}}>{n.tipo}</span></td>
                     <td style={{fontWeight:500}}>{n.empleado}</td>
                     <td>{n.mes}</td>
                     <td>{n.fechaInicio}</td>
                     <td>{n.fechaFin}</td>
-                    <td>{n.reportadoPor}</td>
-                    <td>{n.adjunto ? '📎' : '—'}</td>
+                    <td style={{textAlign:'center',fontWeight:600}}>{n.dias || '—'}</td>
+                    <td style={{fontSize:12,color:'#6b7280',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={n.observacion}>{n.observacion || '—'}</td>
+                    <td style={{fontSize:12}}>{n.reportadoPor}</td>
+                    <td>{n.adjunto ? (
+                      <button className="btn btn-secondary btn-sm" onClick={()=>verAdjunto(n.adjunto)} title="Ver adjunto">
+                        {n.adjunto.name?.endsWith('.pdf') ? '📄' : '🖼️'} Ver
+                      </button>
+                    ) : '—'}</td>
+                    <td><button className="btn btn-danger btn-sm" onClick={()=>eliminarNovedad(n.id)} title="Eliminar">🗑️</button></td>
                   </tr>
                 ))}
               </tbody>
