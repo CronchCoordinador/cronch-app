@@ -38,9 +38,21 @@ const SEDES = ["Oficinas","Bachué","Olímpica","Fusa","Producción","Digital"];
 const SUB_DIRECCIONES = ["Administrativo","Comercial","Operativo"];
 const TIPOS_DOC = ["CC","CE","PT","TI"];
 const TIPOS_VINCULACION = ["Contrato","Apoyo"];
-const TALLAS_CAMISA = ["S","M","L","XL"];
-const TALLAS_PANTALON = ["6","8","10","12","14","16"];
-const TALLAS_ZAPATOS = ["35","36","37","38","39","40","41","42","43","44","45"];
+const TALLAS_CAMISA = ["S","M","L","XL","XXL"];
+const TALLAS_PANTALON = ["6","8","10","11","14","16","18"];
+const TALLAS_ZAPATOS = ["35","36","37","38","39","40","41","42","43","44"];
+const TALLAS_CHAQUETA = ["S","M","L","XL","XXL"];
+const GENEROS = ["Femenino","Masculino","Otro"];
+const ESTADOS_CIVILES = ["Soltero(a)","Casado(a)","Unión libre","Divorciado(a)","Viudo(a)"];
+const EPS_LIST = ["Salud Total","Sanitas","Famisanar","Nueva EPS","Compensar"];
+const PENSION_LIST = ["Porvenir","Protección","Colfondos","Skandia"];
+const CESANTIAS_LIST = ["Protección","Colfondos","Skandia","Fondo Nacional del Ahorro"];
+const ARL_LIST = ["Sura","Positiva","Axa Colpatria","Colmena"];
+const CAJA_COMP_LIST = ["Compensar","Colsubsidio","Cafam"];
+const BANCOS = ["Bancolombia","Davivienda","Daviplata","Nequi"];
+const RH_LIST = ["O+","O-","A+","A-","B+","B-","AB+","AB-"];
+const NIVEL_EDUCATIVO = ["Primaria","Bachiller","Técnico","Tecnólogo","Profesional","Especialización","Maestría"];
+const TIPOS_CONTRATO = ["Término Fijo","Término Indefinido","Obra o Labor","Prestación de Servicios"];
 const DOTACION_ITEMS = ["Camisa","Pantalón","Delantal","Pañoleta","Chaqueta","Sudadera","Cofia","Zapatos","Camiseta Team Blanca","Camiseta Team Negra"];
 const TIPOS_NOVEDAD = ["Incapacidades","Vacaciones","Retiro de empleado","Permiso remunerado","Inasistencia al trabajo","Licencia","Justificada","Otro"];
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -58,12 +70,9 @@ const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbwmG91QU-_YcHYBR4vPw
 
 const sendToSheet = async (action, data) => {
   try {
-    fetch(GSHEET_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, data })
-    });
+    const payload = JSON.stringify({ action, data });
+    const img = new Image();
+    img.src = GSHEET_URL + '?payload=' + encodeURIComponent(payload);
   } catch(e) { console.error('Error enviando a Google Sheets:', e); }
 };
 
@@ -581,21 +590,33 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 
 // ==================== REGISTRO PERSONAL ====================
 function RegistroPanel({ empleados, setEmpleados }) {
-  const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',fechaNac:'',sexo:'Femenino',direccion:'',telefono:'',cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],fechaIngreso:'',tallaCamisa:TALLAS_CAMISA[0],tallaPantalon:TALLAS_PANTALON[0],tallaZapatos:TALLAS_ZAPATOS[0] };
+  const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
   const [form, setForm] = useState({...empty});
   const [errors, setErrors] = useState({});
   const [search, setSearch] = useState('');
   const [editIdx, setEditIdx] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
-  const required = ['apellidos','nombres','documento','fechaNac','direccion','telefono','fechaIngreso'];
-  const handleChange = (k, v) => setForm(p => ({...p,[k]:v}));
+  const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
+  const handleChange = (k, v) => {
+    const updated = {...form, [k]:v};
+    // Auto-calcular edad
+    if (k === 'fechaNac' && v) {
+      const birth = new Date(v);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      updated.edad = String(age);
+    }
+    setForm(updated);
+  };
 
   const handleSubmit = () => {
     const e = {};
-    required.forEach(f => { if (!form[f]?.trim()) e[f] = true; });
+    required.forEach(f => { if (!form[f]?.toString().trim()) e[f] = true; });
     setErrors(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) { alert('Por favor complete todos los campos obligatorios marcados con *'); return; }
     if (editIdx !== null) {
       const updated = [...empleados];
       updated[editIdx] = {...form};
@@ -617,10 +638,23 @@ function RegistroPanel({ empleados, setEmpleados }) {
     return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s);
   });
 
+  const F = ({label,field,type,opts,req}) => (
+    <div className="form-group">
+      <label>{label}{req!==false?' *':''}</label>
+      {opts ? (
+        <select className={errors[field]?'error':''} value={form[field]||''} onChange={e=>handleChange(field,e.target.value)}>
+          {opts.map(o=><option key={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input type={type||'text'} className={errors[field]?'error':''} value={form[field]||''} onChange={e=>handleChange(field,e.target.value)} />
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="page-header">
-        <h1>Registro de Personal</h1><p>Gestión de empleados del restaurante</p>
+        <h1>Registro de Personal</h1><p>Gestión completa de empleados del restaurante</p>
       </div>
 
       <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
@@ -629,35 +663,100 @@ function RegistroPanel({ empleados, setEmpleados }) {
         </button>
         <ExportButton label="Exportar Empleados" onClick={()=>exportToCSV(empleados,[
           {label:'Apellidos',key:'apellidos'},{label:'Nombres',key:'nombres'},{label:'Tipo Doc',key:'tipoDoc'},{label:'Documento',key:'documento'},
-          {label:'Fecha Nacimiento',key:'fechaNac'},{label:'Sexo',key:'sexo'},{label:'Dirección',key:'direccion'},{label:'Teléfono',key:'telefono'},
-          {label:'Cargo',key:'cargo'},{label:'Sub Dirección',key:'subDireccion'},{label:'Sede',key:'sede'},{label:'Vinculación',key:'tipoVinculacion'},
-          {label:'Fecha Ingreso',key:'fechaIngreso'},{label:'Talla Camisa',key:'tallaCamisa'},{label:'Talla Pantalón',key:'tallaPantalon'},{label:'Talla Zapatos',key:'tallaZapatos'}
+          {label:'Ciudad Expedición',key:'ciudadExpedicion'},{label:'Fecha Expedición',key:'fechaExpedicion'},
+          {label:'Fecha Nacimiento',key:'fechaNac'},{label:'Edad',key:'edad'},{label:'Lugar Nacimiento',key:'lugarNacimiento'},
+          {label:'Género',key:'genero'},{label:'Estado Civil',key:'estadoCivil'},{label:'RH',key:'rh'},{label:'Nivel Educativo',key:'nivelEducativo'},
+          {label:'Salario',key:'salario'},{label:'Tipo Contrato',key:'tipoContrato'},{label:'Vinculación',key:'tipoVinculacion'},
+          {label:'Fecha Ingreso',key:'fechaIngreso'},{label:'Fecha Terminación',key:'fechaTerminacion'},{label:'Fecha Retiro',key:'fechaRetiro'},
+          {label:'Dirección',key:'direccion'},{label:'Barrio',key:'barrio'},{label:'Ciudad',key:'ciudad'},
+          {label:'Teléfono',key:'telefono'},{label:'Correo',key:'correo'},
+          {label:'Contacto Emergencia',key:'contactoEmergenciaNombre'},{label:'Tel Emergencia',key:'contactoEmergenciaNumero'},{label:'Parentesco',key:'contactoEmergenciaParentesco'},
+          {label:'EPS',key:'eps'},{label:'Pensión',key:'pension'},{label:'Cesantías',key:'cesantias'},{label:'ARL',key:'arl'},{label:'Caja Compensación',key:'cajaCompensacion'},
+          {label:'Banco',key:'banco'},{label:'Nº Cuenta',key:'numeroCuenta'},
+          {label:'Cargo',key:'cargo'},{label:'Sub Dirección',key:'subDireccion'},{label:'Sede',key:'sede'},
+          {label:'Talla Pantalón',key:'tallaPantalon'},{label:'Talla Chaqueta',key:'tallaChaqueta'},{label:'Talla Camisa',key:'tallaCamisa'},{label:'Talla Zapatos',key:'tallaZapatos'}
         ],'CRONCH_Empleados')} />
       </div>
 
       {showForm && (
         <div className="card fade-in">
-          <div className="card-title">{editIdx !== null ? 'Editar Empleado' : 'Registrar Nuevo Empleado'}</div>
+          <div className="card-title">{editIdx !== null ? '✏️ Editar Empleado' : '👤 Registrar Nuevo Empleado'}</div>
+          
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
-            <div className="form-group"><label>Apellidos *</label><input className={errors.apellidos?'error':''} value={form.apellidos} onChange={e=>handleChange('apellidos',e.target.value)} /></div>
-            <div className="form-group"><label>Nombres *</label><input className={errors.nombres?'error':''} value={form.nombres} onChange={e=>handleChange('nombres',e.target.value)} /></div>
-            <div className="form-group"><label>Tipo Documento</label><select value={form.tipoDoc} onChange={e=>handleChange('tipoDoc',e.target.value)}>{TIPOS_DOC.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Nº Documento *</label><input className={errors.documento?'error':''} value={form.documento} onChange={e=>handleChange('documento',e.target.value)} /></div>
-            <div className="form-group"><label>Fecha Nacimiento *</label><input type="date" className={errors.fechaNac?'error':''} value={form.fechaNac} onChange={e=>handleChange('fechaNac',e.target.value)} /></div>
-            <div className="form-group"><label>Sexo</label><select value={form.sexo} onChange={e=>handleChange('sexo',e.target.value)}><option>Femenino</option><option>Masculino</option></select></div>
-            <div className="form-group"><label>Dirección *</label><input className={errors.direccion?'error':''} value={form.direccion} onChange={e=>handleChange('direccion',e.target.value)} /></div>
-            <div className="form-group"><label>Teléfono *</label><input className={errors.telefono?'error':''} value={form.telefono} onChange={e=>handleChange('telefono',e.target.value)} /></div>
-            <div className="form-group"><label>Cargo</label><select value={form.cargo} onChange={e=>handleChange('cargo',e.target.value)}>{CARGOS.map(c=><option key={c}>{c}</option>)}</select></div>
-            <div className="form-group"><label>Sub Dirección</label><select value={form.subDireccion} onChange={e=>handleChange('subDireccion',e.target.value)}>{SUB_DIRECCIONES.map(s=><option key={s}>{s}</option>)}</select></div>
-            <div className="form-group"><label>Sede</label><select value={form.sede} onChange={e=>handleChange('sede',e.target.value)}>{SEDES.map(s=><option key={s}>{s}</option>)}</select></div>
-            <div className="form-group"><label>Tipo Vinculación</label><select value={form.tipoVinculacion} onChange={e=>handleChange('tipoVinculacion',e.target.value)}>{TIPOS_VINCULACION.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Fecha Ingreso *</label><input type="date" className={errors.fechaIngreso?'error':''} value={form.fechaIngreso} onChange={e=>handleChange('fechaIngreso',e.target.value)} /></div>
-            <div className="form-group"><label>Talla Camisa</label><select value={form.tallaCamisa} onChange={e=>handleChange('tallaCamisa',e.target.value)}>{TALLAS_CAMISA.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Talla Pantalón</label><select value={form.tallaPantalon} onChange={e=>handleChange('tallaPantalon',e.target.value)}>{TALLAS_PANTALON.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="form-group"><label>Talla Zapatos</label><select value={form.tallaZapatos} onChange={e=>handleChange('tallaZapatos',e.target.value)}>{TALLAS_ZAPATOS.map(t=><option key={t}>{t}</option>)}</select></div>
+            <F label="Tipo Documento" field="tipoDoc" opts={TIPOS_DOC} />
+            <F label="Nº Documento" field="documento" />
+            <F label="Ciudad de Expedición" field="ciudadExpedicion" />
+            <F label="Fecha de Expedición" field="fechaExpedicion" type="date" />
+            <F label="Apellidos" field="apellidos" />
+            <F label="Nombres" field="nombres" />
           </div>
-          <div style={{marginTop:20,display:'flex',gap:10}}>
-            <button className="btn btn-primary" onClick={handleSubmit}>{editIdx!==null ? 'Guardar Cambios' : 'Registrar Empleado'}</button>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
+          <div className="form-grid">
+            <F label="Fecha de Nacimiento" field="fechaNac" type="date" />
+            <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
+            <F label="Lugar de Nacimiento" field="lugarNacimiento" />
+            <F label="Género" field="genero" opts={GENEROS} />
+            <F label="Estado Civil" field="estadoCivil" opts={ESTADOS_CIVILES} />
+            <F label="RH" field="rh" opts={RH_LIST} />
+            <F label="Nivel Educativo" field="nivelEducativo" opts={NIVEL_EDUCATIVO} />
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
+          <div className="form-grid">
+            <F label="Dirección de Vivienda" field="direccion" />
+            <F label="Barrio" field="barrio" />
+            <F label="Ciudad" field="ciudad" />
+            <F label="Teléfono" field="telefono" />
+            <F label="Correo Electrónico" field="correo" type="email" />
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
+          <div className="form-grid">
+            <F label="Nombre del Contacto" field="contactoEmergenciaNombre" />
+            <F label="Número de Contacto" field="contactoEmergenciaNumero" />
+            <F label="Parentesco" field="contactoEmergenciaParentesco" />
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
+          <div className="form-grid">
+            <F label="Cargo" field="cargo" opts={CARGOS} />
+            <F label="Sub Dirección" field="subDireccion" opts={SUB_DIRECCIONES} />
+            <F label="Sede" field="sede" opts={SEDES} />
+            <F label="Tipo Vinculación" field="tipoVinculacion" opts={TIPOS_VINCULACION} />
+            <F label="Tipo de Contrato" field="tipoContrato" opts={TIPOS_CONTRATO} />
+            <F label="Salario" field="salario" type="number" />
+            <F label="Fecha de Ingreso" field="fechaIngreso" type="date" />
+            <F label="Fecha Terminación Contrato" field="fechaTerminacion" type="date" req={false} />
+            <F label="Fecha de Retiro" field="fechaRetiro" type="date" req={false} />
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏥 SEGURIDAD SOCIAL</p>
+          <div className="form-grid">
+            <F label="EPS" field="eps" opts={EPS_LIST} />
+            <F label="Fondo de Pensión" field="pension" opts={PENSION_LIST} />
+            <F label="Cesantías" field="cesantias" opts={CESANTIAS_LIST} />
+            <F label="ARL" field="arl" opts={ARL_LIST} />
+            <F label="Caja de Compensación" field="cajaCompensacion" opts={CAJA_COMP_LIST} />
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
+          <div className="form-grid">
+            <F label="Cuenta Bancaria" field="banco" opts={BANCOS} />
+            <F label="Número de Cuenta" field="numeroCuenta" />
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
+          <div className="form-grid">
+            <F label="Talla Pantalón" field="tallaPantalon" opts={TALLAS_PANTALON} />
+            <F label="Talla Chaqueta" field="tallaChaqueta" opts={TALLAS_CHAQUETA} />
+            <F label="Talla Camisa" field="tallaCamisa" opts={TALLAS_CAMISA} />
+            <F label="Talla Calzado" field="tallaZapatos" opts={TALLAS_ZAPATOS} />
+          </div>
+
+          <div style={{marginTop:24,display:'flex',gap:10}}>
+            <button className="btn btn-primary" onClick={handleSubmit}>{editIdx!==null ? '💾 Guardar Cambios' : '✅ Registrar Empleado'}</button>
             <button className="btn btn-secondary" onClick={()=>{setShowForm(false);setEditIdx(null);}}>Cancelar</button>
           </div>
         </div>
@@ -673,7 +772,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
         ) : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Nombre</th><th>Documento</th><th>Cargo</th><th>Sede</th><th>Vinculación</th><th>Ingreso</th><th>Acciones</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Documento</th><th>Cargo</th><th>Sede</th><th>Vinculación</th><th>Ingreso</th><th>Retiro</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody>
                 {filtered.map((e,i) => (
                   <tr key={i}>
@@ -683,6 +782,8 @@ function RegistroPanel({ empleados, setEmpleados }) {
                     <td><span className="badge badge-beige">{e.sede}</span></td>
                     <td><span className={`badge ${e.tipoVinculacion==='Contrato'?'badge-green':'badge-yellow'}`}>{e.tipoVinculacion}</span></td>
                     <td>{e.fechaIngreso}</td>
+                    <td>{e.fechaRetiro || '—'}</td>
+                    <td><span className={`badge ${e.fechaRetiro?'badge-red':'badge-green'}`}>{e.fechaRetiro?'Retirado':'Activo'}</span></td>
                     <td>
                       <button className="btn btn-secondary btn-sm" onClick={()=>handleEdit(empleados.indexOf(e))} style={{marginRight:4}}>✏️</button>
                       <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(empleados.indexOf(e))}>🗑️</button>
