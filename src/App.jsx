@@ -590,7 +590,26 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 
 // ==================== REGISTRO PERSONAL ====================
 
-// ==================== REGISTRO PERSONAL ====================
+function FormInput({ label, name, type, value, onChange }) {
+  return (
+    <div className="form-group">
+      <label>{label}</label>
+      <input type={type || 'text'} name={name} value={value || ''} onChange={onChange} />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, onChange, options }) {
+  return (
+    <div className="form-group">
+      <label>{label}</label>
+      <select name={name} value={value || ''} onChange={onChange}>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function RegistroPanel({ empleados, setEmpleados }) {
   const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
   const [form, setForm] = useState({...empty});
@@ -632,8 +651,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
   const handleDelete = (i) => { if (confirm('¿Eliminar este empleado?')) setEmpleados(empleados.filter((_,j) => j !== i)); };
   const filtered = empleados.filter(e => { const s = search.toLowerCase(); return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s); });
 
-  const I = (label, name, type) => <div className="form-group"><label>{label}</label><input type={type||'text'} name={name} value={form[name]||''} onChange={onChange} /></div>;
-  const S = (label, name, options) => <div className="form-group"><label>{label}</label><select name={name} value={form[name]||''} onChange={onChange}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
+
 
   return (
     <div>
@@ -651,75 +669,75 @@ function RegistroPanel({ empleados, setEmpleados }) {
           
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
-            {S("Tipo Documento *","tipoDoc",TIPOS_DOC)}
-            {I("Nº Documento *","documento")}
-            {I("Ciudad de Expedición *","ciudadExpedicion")}
-            {I("Fecha de Expedición *","fechaExpedicion","date")}
-            {I("Apellidos *","apellidos")}
-            {I("Nombres *","nombres")}
+            <FormSelect label="Tipo Documento *" name="tipoDoc" value={form.tipoDoc} onChange={onChange} options={TIPOS_DOC} />
+            <FormInput label="Nº Documento *" name="documento" value={form.documento} onChange={onChange} />
+            <FormInput label="Ciudad de Expedición *" name="ciudadExpedicion" value={form.ciudadExpedicion} onChange={onChange} />
+            <FormInput label="Fecha de Expedición *" name="fechaExpedicion" type="date" value={form.fechaExpedicion} onChange={onChange} />
+            <FormInput label="Apellidos *" name="apellidos" value={form.apellidos} onChange={onChange} />
+            <FormInput label="Nombres *" name="nombres" value={form.nombres} onChange={onChange} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
           <div className="form-grid">
-            {I("Fecha de Nacimiento *","fechaNac","date")}
+            <FormInput label="Fecha de Nacimiento *" name="fechaNac" type="date" value={form.fechaNac} onChange={onChange} />
             <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
-            {I("Lugar de Nacimiento *","lugarNacimiento")}
-            {S("Género *","genero",GENEROS)}
-            {S("Estado Civil *","estadoCivil",ESTADOS_CIVILES)}
-            {S("RH *","rh",RH_LIST)}
-            {S("Nivel Educativo *","nivelEducativo",NIVEL_EDUCATIVO)}
+            <FormInput label="Lugar de Nacimiento *" name="lugarNacimiento" value={form.lugarNacimiento} onChange={onChange} />
+            <FormSelect label="Género *" name="genero" value={form.genero} onChange={onChange} options={GENEROS} />
+            <FormSelect label="Estado Civil *" name="estadoCivil" value={form.estadoCivil} onChange={onChange} options={ESTADOS_CIVILES} />
+            <FormSelect label="RH *" name="rh" value={form.rh} onChange={onChange} options={RH_LIST} />
+            <FormSelect label="Nivel Educativo *" name="nivelEducativo" value={form.nivelEducativo} onChange={onChange} options={NIVEL_EDUCATIVO} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
           <div className="form-grid">
-            {I("Dirección de Vivienda *","direccion")}
-            {I("Barrio *","barrio")}
-            {I("Ciudad *","ciudad")}
-            {I("Teléfono *","telefono")}
-            {I("Correo Electrónico *","correo","email")}
+            <FormInput label="Dirección de Vivienda *" name="direccion" value={form.direccion} onChange={onChange} />
+            <FormInput label="Barrio *" name="barrio" value={form.barrio} onChange={onChange} />
+            <FormInput label="Ciudad *" name="ciudad" value={form.ciudad} onChange={onChange} />
+            <FormInput label="Teléfono *" name="telefono" value={form.telefono} onChange={onChange} />
+            <FormInput label="Correo Electrónico *" name="correo" type="email" value={form.correo} onChange={onChange} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
           <div className="form-grid">
-            {I("Nombre del Contacto *","contactoEmergenciaNombre")}
-            {I("Número de Contacto *","contactoEmergenciaNumero")}
-            {I("Parentesco *","contactoEmergenciaParentesco")}
+            <FormInput label="Nombre del Contacto *" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre} onChange={onChange} />
+            <FormInput label="Número de Contacto *" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero} onChange={onChange} />
+            <FormInput label="Parentesco *" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco} onChange={onChange} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
           <div className="form-grid">
-            {S("Cargo *","cargo",CARGOS)}
-            {S("Sub Dirección *","subDireccion",SUB_DIRECCIONES)}
-            {S("Sede *","sede",SEDES)}
-            {S("Tipo Vinculación *","tipoVinculacion",TIPOS_VINCULACION)}
-            {S("Tipo de Contrato *","tipoContrato",TIPOS_CONTRATO)}
-            {I("Salario *","salario","number")}
-            {I("Fecha de Ingreso *","fechaIngreso","date")}
-            {I("Fecha Terminación Contrato","fechaTerminacion","date")}
-            {I("Fecha de Retiro","fechaRetiro","date")}
+            <FormSelect label="Cargo *" name="cargo" value={form.cargo} onChange={onChange} options={CARGOS} />
+            <FormSelect label="Sub Dirección *" name="subDireccion" value={form.subDireccion} onChange={onChange} options={SUB_DIRECCIONES} />
+            <FormSelect label="Sede *" name="sede" value={form.sede} onChange={onChange} options={SEDES} />
+            <FormSelect label="Tipo Vinculación *" name="tipoVinculacion" value={form.tipoVinculacion} onChange={onChange} options={TIPOS_VINCULACION} />
+            <FormSelect label="Tipo de Contrato *" name="tipoContrato" value={form.tipoContrato} onChange={onChange} options={TIPOS_CONTRATO} />
+            <FormInput label="Salario *" name="salario" type="number" value={form.salario} onChange={onChange} />
+            <FormInput label="Fecha de Ingreso *" name="fechaIngreso" type="date" value={form.fechaIngreso} onChange={onChange} />
+            <FormInput label="Fecha Terminación Contrato" name="fechaTerminacion" type="date" value={form.fechaTerminacion} onChange={onChange} />
+            <FormInput label="Fecha de Retiro" name="fechaRetiro" type="date" value={form.fechaRetiro} onChange={onChange} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏥 SEGURIDAD SOCIAL</p>
           <div className="form-grid">
-            {S("EPS *","eps",EPS_LIST)}
-            {S("Fondo de Pensión *","pension",PENSION_LIST)}
-            {S("Cesantías *","cesantias",CESANTIAS_LIST)}
-            {S("ARL *","arl",ARL_LIST)}
-            {S("Caja de Compensación *","cajaCompensacion",CAJA_COMP_LIST)}
+            <FormSelect label="EPS *" name="eps" value={form.eps} onChange={onChange} options={EPS_LIST} />
+            <FormSelect label="Fondo de Pensión *" name="pension" value={form.pension} onChange={onChange} options={PENSION_LIST} />
+            <FormSelect label="Cesantías *" name="cesantias" value={form.cesantias} onChange={onChange} options={CESANTIAS_LIST} />
+            <FormSelect label="ARL *" name="arl" value={form.arl} onChange={onChange} options={ARL_LIST} />
+            <FormSelect label="Caja de Compensación *" name="cajaCompensacion" value={form.cajaCompensacion} onChange={onChange} options={CAJA_COMP_LIST} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
           <div className="form-grid">
-            {S("Cuenta Bancaria *","banco",BANCOS)}
-            {I("Número de Cuenta *","numeroCuenta")}
+            <FormSelect label="Cuenta Bancaria *" name="banco" value={form.banco} onChange={onChange} options={BANCOS} />
+            <FormInput label="Número de Cuenta *" name="numeroCuenta" value={form.numeroCuenta} onChange={onChange} />
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
           <div className="form-grid">
-            {S("Talla Pantalón *","tallaPantalon",TALLAS_PANTALON)}
-            {S("Talla Chaqueta *","tallaChaqueta",TALLAS_CHAQUETA)}
-            {S("Talla Camisa *","tallaCamisa",TALLAS_CAMISA)}
-            {S("Talla Calzado *","tallaZapatos",TALLAS_ZAPATOS)}
+            <FormSelect label="Talla Pantalón *" name="tallaPantalon" value={form.tallaPantalon} onChange={onChange} options={TALLAS_PANTALON} />
+            <FormSelect label="Talla Chaqueta *" name="tallaChaqueta" value={form.tallaChaqueta} onChange={onChange} options={TALLAS_CHAQUETA} />
+            <FormSelect label="Talla Camisa *" name="tallaCamisa" value={form.tallaCamisa} onChange={onChange} options={TALLAS_CAMISA} />
+            <FormSelect label="Talla Calzado *" name="tallaZapatos" value={form.tallaZapatos} onChange={onChange} options={TALLAS_ZAPATOS} />
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
