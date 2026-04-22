@@ -799,27 +799,40 @@ function RegistroPanel({ empleados, setEmpleados }) {
   );
 }
 
-// ==================== DOTACIÓN (INVENTARIO + ENTREGAS) ====================
+// ==================== DOTACIÓN (INVENTARIO + ENTREGAS + COMPRAS) ====================
 function DotacionPanel({ inventario, setInventario, entregas, setEntregas, empleados, user }) {
   const [tab, setTab] = useState('inventario');
   const [entregaForm, setEntregaForm] = useState({ empleadoNombre: '', empleadoDoc: '', items: [], responsable: '', firma: null, foto: null, fecha: todayISO() });
-  const [showEntregaForm, setShowEntregaForm] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
   const [entregaItems, setEntregaItems] = useState([{ articulo: DOTACION_ITEMS[0], cantidad: 1 }]);
+  
+  // Compras state
+  const [compraForm, setCompraForm] = useState({ proveedor: '', cedulaNit: '', fecha: todayISO() });
+  const [compraItems, setCompraItems] = useState([{ articulo: DOTACION_ITEMS[0], cantidad: 1, precioUnitario: 0 }]);
+  const [compras, setCompras] = useState(() => {
+    try { const stored = localStorage.getItem('cronch-compras'); return stored ? JSON.parse(stored) : []; } catch { return []; }
+  });
+  const saveCompras = (data) => { setCompras(data); localStorage.setItem('cronch-compras', JSON.stringify(data)); };
 
-  const handleInvChange = (item, field, val) => {
-    const updated = { ...inventario, [item]: { ...inventario[item], [field]: Number(val) || 0 } };
-    setInventario(updated);
+  // Validar stock antes de entregar
+  const validarStock = () => {
+    const sinStock = [];
+    entregaItems.forEach(ei => {
+      const stockActual = inventario[ei.articulo]?.stock || 0;
+      if (ei.cantidad > stockActual) sinStock.push({ articulo: ei.articulo, solicitado: ei.cantidad, disponible: stockActual });
+    });
+    return sinStock;
   };
-
-  const addEntregaItem = () => setEntregaItems([...entregaItems, { articulo: DOTACION_ITEMS[0], cantidad: 1 }]);
-  const removeEntregaItem = (i) => setEntregaItems(entregaItems.filter((_, j) => j !== i));
 
   const submitEntrega = () => {
     if (!entregaForm.empleadoNombre || !entregaForm.empleadoDoc || !entregaForm.responsable || entregaItems.length === 0) {
       alert('Todos los campos son obligatorios'); return;
     }
-    // Descontar del inventario
+    const sinStock = validarStock();
+    if (sinStock.length > 0) {
+      alert('❌ No hay suficiente inventario:\n' + sinStock.map(s => `• ${s.articulo}: Solicitado ${s.solicitado}, Disponible ${s.disponible}`).join('\n'));
+      return;
+    }
     const updatedInv = { ...inventario };
     entregaItems.forEach(ei => {
       if (updatedInv[ei.articulo]) {
@@ -827,61 +840,13 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
       }
     });
     setInventario(updatedInv);
+    const newEntrega = { ...entregaForm, items: entregaItems, id: Date.now(), fechaCreacion: new Date().toISOString() };
 
-    const newEntrega = {
-      ...entregaForm,
-      items: entregaItems,
-      id: Date.now(),
-      fechaCreacion: new Date().toISOString(),
-    };
-
-    // Generar PDF del acta de entrega
+    // PDF Acta de entrega
     const itemsHTML = entregaItems.map(ei => `<tr><td style="border:1px solid #ccc;padding:8px;">${ei.articulo}</td><td style="border:1px solid #ccc;padding:8px;text-align:center;">${ei.cantidad}</td></tr>`).join('');
     const firmaImg = entregaForm.firma ? `<img src="${entregaForm.firma}" style="height:60px;" />` : '<p style="margin-top:40px;">_________________________</p>';
-    const fotoImg = entregaForm.foto ? `<img src="${entregaForm.foto}" style="height:100px;border-radius:8px;" />` : '';
-    const actaHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Acta de Entrega - ${entregaForm.empleadoNombre}</title>
-    <style>
-      @page { size: letter; margin: 2cm 2.5cm; }
-      body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.6; color: #000; }
-      h1 { text-align: center; font-size: 16pt; margin-bottom: 5px; }
-      h2 { text-align: center; font-size: 13pt; font-weight: normal; color: #555; margin-bottom: 20px; }
-      .info { margin: 15px 0; }
-      .info p { margin: 4px 0; }
-      table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-      th { background: #2a5cc7; color: #fff; padding: 8px; text-align: left; }
-      .firmas { display: flex; justify-content: space-between; margin-top: 40px; }
-      .firma-box { text-align: center; width: 45%; }
-      @media print { body { -webkit-print-color-adjust: exact; } }
-    </style></head><body>
-      <h1>ACTA DE ENTREGA DE DOTACIÓN</h1>
-      <h2>Cronch Artesanalmente Oblea S.A.S — NIT 901.481.136-4</h2>
-      <hr style="border:1px solid #2a5cc7;margin-bottom:20px;">
-      <div class="info">
-        <p><strong>Fecha:</strong> ${entregaForm.fecha}</p>
-        <p><strong>Empleado:</strong> ${entregaForm.empleadoNombre}</p>
-        <p><strong>Documento:</strong> ${entregaForm.empleadoDoc}</p>
-        <p><strong>Responsable de entrega:</strong> ${entregaForm.responsable}</p>
-      </div>
-      <table>
-        <thead><tr><th>Artículo</th><th style="text-align:center;">Cantidad</th></tr></thead>
-        <tbody>${itemsHTML}</tbody>
-      </table>
-      <p style="margin-top:20px;text-align:justify;">Yo, <strong>${entregaForm.empleadoNombre}</strong>, identificado(a) con documento N° <strong>${entregaForm.empleadoDoc}</strong>, declaro haber recibido a mi entera satisfacción los elementos de dotación relacionados anteriormente, comprometiéndome a darles buen uso y cuidado.</p>
-      <div class="firmas">
-        <div class="firma-box">
-          <p><strong>Quien recibe:</strong></p>
-          ${firmaImg}
-          <p>${entregaForm.empleadoNombre}</p>
-          <p>CC. ${entregaForm.empleadoDoc}</p>
-        </div>
-        <div class="firma-box">
-          <p><strong>Quien entrega:</strong></p>
-          <p style="margin-top:40px;">_________________________</p>
-          <p>${entregaForm.responsable}</p>
-        </div>
-      </div>
-      ${fotoImg ? '<div style="margin-top:20px;"><p><strong>Foto del empleado:</strong></p>' + fotoImg + '</div>' : ''}
-    </body></html>`;
+    const fotoImg = entregaForm.foto ? `<div style="margin-top:20px;"><p><strong>Foto:</strong></p><img src="${entregaForm.foto}" style="height:100px;border-radius:8px;" /></div>` : '';
+    const actaHTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Acta - ${entregaForm.empleadoNombre}</title><style>@page{size:letter;margin:2cm 2.5cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6}h1{text-align:center;font-size:16pt}h2{text-align:center;font-size:13pt;font-weight:normal;color:#555}table{width:100%;border-collapse:collapse;margin:15px 0}th{background:#2a5cc7;color:#fff;padding:8px;text-align:left}.firmas{display:flex;justify-content:space-between;margin-top:40px}.firma-box{text-align:center;width:45%}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h1>ACTA DE ENTREGA DE DOTACIÓN</h1><h2>Cronch Artesanalmente Oblea S.A.S — NIT 901.481.136-4</h2><hr style="border:1px solid #2a5cc7;margin-bottom:20px"><div><p><strong>Fecha:</strong> ${entregaForm.fecha}</p><p><strong>Empleado:</strong> ${entregaForm.empleadoNombre}</p><p><strong>Documento:</strong> ${entregaForm.empleadoDoc}</p><p><strong>Responsable:</strong> ${entregaForm.responsable}</p></div><table><thead><tr><th>Artículo</th><th style="text-align:center">Cantidad</th></tr></thead><tbody>${itemsHTML}</tbody></table><p style="margin-top:20px;text-align:justify">Yo, <strong>${entregaForm.empleadoNombre}</strong>, identificado(a) con documento N° <strong>${entregaForm.empleadoDoc}</strong>, declaro haber recibido a mi entera satisfacción los elementos de dotación relacionados.</p><div class="firmas"><div class="firma-box"><p><strong>Quien recibe:</strong></p>${firmaImg}<p>${entregaForm.empleadoNombre}</p></div><div class="firma-box"><p><strong>Quien entrega:</strong></p><p style="margin-top:40px">_________________________</p><p>${entregaForm.responsable}</p></div></div>${fotoImg}</body></html>`;
     const ventanaActa = window.open('', '_blank');
     ventanaActa.document.write(actaHTML);
     ventanaActa.document.close();
@@ -891,38 +856,174 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
     sendToSheet('addEntrega', newEntrega);
     setEntregaForm({ empleadoNombre: '', empleadoDoc: '', items: [], responsable: '', firma: null, foto: null, fecha: todayISO() });
     setEntregaItems([{ articulo: DOTACION_ITEMS[0], cantidad: 1 }]);
-    setShowEntregaForm(false);
+    setTab('inventario');
     alert('✅ Acta de entrega registrada correctamente');
   };
 
+  const submitCompra = () => {
+    if (!compraForm.proveedor || !compraForm.cedulaNit || compraItems.length === 0) {
+      alert('Complete todos los campos del proveedor'); return;
+    }
+    if (compraItems.some(ci => ci.cantidad <= 0 || ci.precioUnitario <= 0)) {
+      alert('Cantidad y precio deben ser mayores a 0'); return;
+    }
+    // Actualizar inventario con la compra
+    const updatedInv = { ...inventario };
+    compraItems.forEach(ci => {
+      if (!updatedInv[ci.articulo]) updatedInv[ci.articulo] = { stock: 0, precio: 0 };
+      const prevStock = updatedInv[ci.articulo].stock;
+      const prevPrecio = updatedInv[ci.articulo].precio;
+      const newStock = prevStock + ci.cantidad;
+      // Promedio ponderado del precio
+      const newPrecio = prevStock > 0 ? Math.round(((prevPrecio * prevStock) + (ci.precioUnitario * ci.cantidad)) / newStock) : ci.precioUnitario;
+      updatedInv[ci.articulo] = { stock: newStock, precio: newPrecio };
+    });
+    setInventario(updatedInv);
+    
+    const newCompra = { ...compraForm, items: compraItems, id: Date.now(), fechaRegistro: new Date().toISOString() };
+    saveCompras([...compras, newCompra]);
+
+    // PDF de compra por proveedor
+    const totalCompra = compraItems.reduce((s, ci) => s + (ci.cantidad * ci.precioUnitario), 0);
+    const compraItemsHTML = compraItems.map(ci => `<tr><td style="border:1px solid #ccc;padding:8px;">${ci.articulo}</td><td style="border:1px solid #ccc;padding:8px;text-align:center;">${ci.cantidad}</td><td style="border:1px solid #ccc;padding:8px;text-align:right;">${formatCurrency(ci.precioUnitario)}</td><td style="border:1px solid #ccc;padding:8px;text-align:right;">${formatCurrency(ci.cantidad * ci.precioUnitario)}</td></tr>`).join('');
+    const compraPDF = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Compra - ${compraForm.proveedor}</title><style>@page{size:letter;margin:2cm 2.5cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6}h1{text-align:center;font-size:16pt}h2{text-align:center;font-size:13pt;font-weight:normal;color:#555}table{width:100%;border-collapse:collapse;margin:15px 0}th{background:#2a5cc7;color:#fff;padding:8px;text-align:left}.total{font-size:16pt;font-weight:bold;text-align:right;margin-top:10px}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h1>REGISTRO DE COMPRA DE DOTACIÓN</h1><h2>Cronch Artesanalmente Oblea S.A.S — NIT 901.481.136-4</h2><hr style="border:1px solid #2a5cc7;margin-bottom:20px"><div><p><strong>Fecha:</strong> ${compraForm.fecha}</p><p><strong>Proveedor:</strong> ${compraForm.proveedor}</p><p><strong>Cédula/NIT:</strong> ${compraForm.cedulaNit}</p></div><table><thead><tr><th>Artículo</th><th style="text-align:center">Cantidad</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Total</th></tr></thead><tbody>${compraItemsHTML}</tbody></table><p class="total">TOTAL: ${formatCurrency(totalCompra)}</p></body></html>`;
+    const ventanaCompra = window.open('', '_blank');
+    ventanaCompra.document.write(compraPDF);
+    ventanaCompra.document.close();
+    setTimeout(() => { ventanaCompra.print(); }, 500);
+
+    setCompraForm({ proveedor: '', cedulaNit: '', fecha: todayISO() });
+    setCompraItems([{ articulo: DOTACION_ITEMS[0], cantidad: 1, precioUnitario: 0 }]);
+    setTab('inventario');
+    alert('✅ Compra registrada y stock actualizado');
+  };
+
+  const stockBajo = DOTACION_ITEMS.filter(it => (inventario[it]?.stock || 0) <= 2);
+
   return (
     <div>
-      <div className="page-header"><h1>Inventario de Dotación</h1><p>Stock, entregas y actas de dotación</p></div>
+      <div className="page-header"><h1>Inventario de Dotación</h1><p>Stock, compras, entregas y actas de dotación</p></div>
+      
+      {stockBajo.length > 0 && (
+        <div className="alert alert-warning">⚠️ Stock bajo en: {stockBajo.map(it => `${it} (${inventario[it]?.stock || 0})`).join(', ')}</div>
+      )}
+
       <div className="tabs">
         <button className={`tab ${tab==='inventario'?'active':''}`} onClick={()=>setTab('inventario')}>📦 Stock</button>
+        <button className={`tab ${tab==='compras'?'active':''}`} onClick={()=>setTab('compras')}>🛒 Nueva Compra</button>
+        <button className={`tab ${tab==='historialCompras'?'active':''}`} onClick={()=>setTab('historialCompras')}>📋 Historial Compras</button>
         <button className={`tab ${tab==='entregas'?'active':''}`} onClick={()=>setTab('entregas')}>📋 Entregas</button>
-        <button className={`tab ${tab==='nueva'?'active':''}`} onClick={()=>{setTab('nueva');setShowEntregaForm(true);}}>+ Nueva Entrega</button>
+        <button className={`tab ${tab==='nueva'?'active':''}`} onClick={()=>setTab('nueva')}>+ Nueva Entrega</button>
       </div>
 
       {tab === 'inventario' && (
         <div className="card fade-in">
-          <div className="card-title">Stock de Dotación</div>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>Ingrese la cantidad disponible y el precio de compra de cada artículo.</p>
+          <div className="card-title">📦 Stock de Dotación</div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Artículo</th><th>Stock Actual</th><th>Precio Unitario</th><th>Valor Total</th></tr></thead>
+              <thead><tr><th>Artículo</th><th>Stock Actual</th><th>Precio Unitario</th><th>Valor Total</th><th>Estado</th></tr></thead>
               <tbody>
-                {DOTACION_ITEMS.map(it => (
-                  <tr key={it}>
-                    <td style={{fontWeight:500}}>{it}</td>
-                    <td><input type="number" min="0" style={{width:80,padding:'6px 8px',border:'1.5px solid #e5e7eb',borderRadius:6}} value={inventario[it]?.stock||0} onChange={e=>handleInvChange(it,'stock',e.target.value)} /></td>
-                    <td><input type="number" min="0" style={{width:110,padding:'6px 8px',border:'1.5px solid #e5e7eb',borderRadius:6}} value={inventario[it]?.precio||0} onChange={e=>handleInvChange(it,'precio',e.target.value)} /></td>
-                    <td>{formatCurrency((inventario[it]?.stock||0)*(inventario[it]?.precio||0))}</td>
-                  </tr>
-                ))}
+                {DOTACION_ITEMS.map(it => {
+                  const stock = inventario[it]?.stock || 0;
+                  const precio = inventario[it]?.precio || 0;
+                  return (
+                    <tr key={it} style={{background: stock === 0 ? '#fee2e2' : stock <= 2 ? '#fef3c7' : ''}}>
+                      <td style={{fontWeight:500}}>{it}</td>
+                      <td style={{textAlign:'center',fontWeight:700,color:stock===0?'#dc2626':stock<=2?'#b45309':'#16a34a'}}>{stock}</td>
+                      <td>{formatCurrency(precio)}</td>
+                      <td>{formatCurrency(stock * precio)}</td>
+                      <td>{stock === 0 ? <span className="badge badge-red">Sin stock</span> : stock <= 2 ? <span className="badge badge-yellow">Bajo</span> : <span className="badge badge-green">OK</span>}</td>
+                    </tr>
+                  );
+                })}
+                <tr style={{background:'#f0f5ff',fontWeight:700}}>
+                  <td>TOTAL</td>
+                  <td style={{textAlign:'center'}}>{DOTACION_ITEMS.reduce((s,it) => s + (inventario[it]?.stock||0), 0)}</td>
+                  <td></td>
+                  <td>{formatCurrency(DOTACION_ITEMS.reduce((s,it) => s + (inventario[it]?.stock||0)*(inventario[it]?.precio||0), 0))}</td>
+                  <td></td>
+                </tr>
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === 'compras' && (
+        <div className="card fade-in">
+          <div className="card-title">🛒 Registrar Compra de Dotación</div>
+          <p style={{fontSize:13,color:'#6b7280',marginBottom:16}}>Al registrar una compra, el stock y precio se actualizan automáticamente.</p>
+          <div className="form-grid">
+            <div className="form-group"><label>Nombre del Proveedor *</label><input value={compraForm.proveedor} onChange={e=>setCompraForm({...compraForm,proveedor:e.target.value})} /></div>
+            <div className="form-group"><label>Cédula o NIT *</label><input value={compraForm.cedulaNit} onChange={e=>setCompraForm({...compraForm,cedulaNit:e.target.value})} /></div>
+            <div className="form-group"><label>Fecha</label><input type="date" value={compraForm.fecha} onChange={e=>setCompraForm({...compraForm,fecha:e.target.value})} /></div>
+          </div>
+          <div style={{marginTop:20}}>
+            <p style={{fontWeight:600,fontSize:13,marginBottom:10,color:'#374151'}}>ARTÍCULOS COMPRADOS</p>
+            {compraItems.map((ci, idx) => {
+              const subtotal = ci.cantidad * ci.precioUnitario;
+              return (
+                <div key={idx} style={{display:'flex',gap:10,alignItems:'center',marginBottom:8,flexWrap:'wrap'}}>
+                  <select value={ci.articulo} onChange={e=>{const u=[...compraItems];u[idx].articulo=e.target.value;setCompraItems(u);}} style={{flex:2,padding:'8px 10px',border:'1.5px solid #e5e7eb',borderRadius:6,minWidth:150}}>
+                    {DOTACION_ITEMS.map(it=><option key={it}>{it}</option>)}
+                  </select>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:12,color:'#6b7280'}}>Cant:</span>
+                    <input type="number" min="1" value={ci.cantidad} onChange={e=>{const u=[...compraItems];u[idx].cantidad=Number(e.target.value);setCompraItems(u);}} style={{width:70,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}} />
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:12,color:'#6b7280'}}>Precio:</span>
+                    <input type="number" min="0" value={ci.precioUnitario} onChange={e=>{const u=[...compraItems];u[idx].precioUnitario=Number(e.target.value);setCompraItems(u);}} style={{width:110,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}} />
+                  </div>
+                  <span style={{fontSize:13,fontWeight:600,color:'#2a5cc7',minWidth:100}}>{formatCurrency(subtotal)}</span>
+                  {compraItems.length > 1 && <button className="btn btn-danger btn-sm" onClick={()=>setCompraItems(compraItems.filter((_,j)=>j!==idx))}>✕</button>}
+                </div>
+              );
+            })}
+            <button className="btn btn-secondary btn-sm" onClick={()=>setCompraItems([...compraItems, {articulo:DOTACION_ITEMS[0],cantidad:1,precioUnitario:0}])} style={{marginTop:4}}>+ Agregar artículo</button>
+            <div style={{marginTop:12,padding:12,background:'#f0f5ff',borderRadius:8,textAlign:'right'}}>
+              <strong style={{fontSize:16}}>TOTAL COMPRA: {formatCurrency(compraItems.reduce((s,ci) => s + (ci.cantidad * ci.precioUnitario), 0))}</strong>
+            </div>
+          </div>
+          <div style={{marginTop:20,display:'flex',gap:10}}>
+            <button className="btn btn-primary" onClick={submitCompra}>✅ Registrar Compra y Actualizar Stock</button>
+            <button className="btn btn-secondary" onClick={()=>setTab('inventario')}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'historialCompras' && (
+        <div className="card fade-in">
+          <div className="card-title">📋 Historial de Compras ({compras.length})</div>
+          {compras.length === 0 ? (
+            <div className="empty-state"><div className="icon">🛒</div><p>No hay compras registradas</p></div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Fecha</th><th>Proveedor</th><th>Cédula/NIT</th><th>Artículos</th><th>Total</th><th>PDF</th><th>Acción</th></tr></thead>
+                <tbody>
+                  {compras.map((c,i) => {
+                    const total = c.items?.reduce((s,ci) => s + (ci.cantidad * ci.precioUnitario), 0) || 0;
+                    return (
+                      <tr key={i}>
+                        <td>{c.fecha}</td>
+                        <td style={{fontWeight:500}}>{c.proveedor}</td>
+                        <td>{c.cedulaNit}</td>
+                        <td style={{fontSize:12}}>{c.items?.map(ci=>`${ci.articulo}(${ci.cantidad})`).join(', ')}</td>
+                        <td style={{fontWeight:600}}>{formatCurrency(total)}</td>
+                        <td><button className="btn btn-primary btn-sm" onClick={()=>{
+                          const cItemsH = c.items?.map(ci=>`<tr><td style="border:1px solid #ccc;padding:8px">${ci.articulo}</td><td style="border:1px solid #ccc;padding:8px;text-align:center">${ci.cantidad}</td><td style="border:1px solid #ccc;padding:8px;text-align:right">${formatCurrency(ci.precioUnitario)}</td><td style="border:1px solid #ccc;padding:8px;text-align:right">${formatCurrency(ci.cantidad*ci.precioUnitario)}</td></tr>`).join('');
+                          const h=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Compra - ${c.proveedor}</title><style>@page{size:letter;margin:2cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6}h1{text-align:center;font-size:16pt}h2{text-align:center;font-size:13pt;font-weight:normal;color:#555}table{width:100%;border-collapse:collapse;margin:15px 0}th{background:#2a5cc7;color:#fff;padding:8px}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h1>REGISTRO DE COMPRA</h1><h2>Cronch Artesanalmente Oblea S.A.S</h2><hr><p><strong>Fecha:</strong> ${c.fecha}</p><p><strong>Proveedor:</strong> ${c.proveedor}</p><p><strong>NIT/CC:</strong> ${c.cedulaNit}</p><table><thead><tr><th>Artículo</th><th>Cant.</th><th>Precio Unit.</th><th>Total</th></tr></thead><tbody>${cItemsH}</tbody></table><p style="text-align:right;font-size:16pt;font-weight:bold">TOTAL: ${formatCurrency(total)}</p></body></html>`;
+                          const w=window.open('','_blank');w.document.write(h);w.document.close();setTimeout(()=>{w.print();},500);
+                        }}>📄 PDF</button></td>
+                        <td><button className="btn btn-danger btn-sm" onClick={()=>{if(confirm('¿Eliminar esta compra?'))saveCompras(compras.filter((_,j)=>j!==i));}}>🗑️</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -966,7 +1067,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
         </div>
       )}
 
-      {(tab === 'nueva' || showEntregaForm) && (
+      {tab === 'nueva' && (
         <div className="card fade-in">
           <div className="card-title">Nueva Acta de Entrega</div>
           <div className="form-grid">
@@ -986,16 +1087,25 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
 
           <div style={{marginTop:20}}>
             <p style={{fontWeight:600,fontSize:13,marginBottom:10,color:'#374151'}}>ARTÍCULOS A ENTREGAR</p>
-            {entregaItems.map((ei, idx) => (
-              <div key={idx} style={{display:'flex',gap:10,alignItems:'center',marginBottom:8}}>
-                <select value={ei.articulo} onChange={e=>{const u=[...entregaItems];u[idx].articulo=e.target.value;setEntregaItems(u);}} style={{flex:1,padding:'8px 10px',border:'1.5px solid #e5e7eb',borderRadius:6}}>
-                  {DOTACION_ITEMS.map(it=><option key={it}>{it}</option>)}
-                </select>
-                <input type="number" min="1" value={ei.cantidad} onChange={e=>{const u=[...entregaItems];u[idx].cantidad=Number(e.target.value);setEntregaItems(u);}} style={{width:70,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}} />
-                {entregaItems.length > 1 && <button className="btn btn-danger btn-sm" onClick={()=>removeEntregaItem(idx)}>✕</button>}
-              </div>
-            ))}
-            <button className="btn btn-secondary btn-sm" onClick={addEntregaItem} style={{marginTop:4}}>+ Agregar artículo</button>
+            {entregaItems.map((ei, idx) => {
+              const stockDisponible = inventario[ei.articulo]?.stock || 0;
+              const sinStock = ei.cantidad > stockDisponible;
+              return (
+                <div key={idx} style={{display:'flex',gap:10,alignItems:'center',marginBottom:8,padding:sinStock?'8px':'0',background:sinStock?'#fee2e2':'transparent',borderRadius:6}}>
+                  <select value={ei.articulo} onChange={e=>{const u=[...entregaItems];u[idx].articulo=e.target.value;setEntregaItems(u);}} style={{flex:1,padding:'8px 10px',border:`1.5px solid ${sinStock?'#dc2626':'#e5e7eb'}`,borderRadius:6}}>
+                    {DOTACION_ITEMS.map(it=>{
+                      const st = inventario[it]?.stock || 0;
+                      return <option key={it} style={{color:st===0?'#dc2626':'inherit'}}>{it} {st===0?'(SIN STOCK)':''}</option>;
+                    })}
+                  </select>
+                  <input type="number" min="1" value={ei.cantidad} onChange={e=>{const u=[...entregaItems];u[idx].cantidad=Number(e.target.value);setEntregaItems(u);}} style={{width:70,padding:'8px',border:`1.5px solid ${sinStock?'#dc2626':'#e5e7eb'}`,borderRadius:6}} />
+                  <span style={{fontSize:12,color:sinStock?'#dc2626':'#6b7280',minWidth:90}}>Stock: {stockDisponible}</span>
+                  {sinStock && <span style={{fontSize:11,color:'#dc2626',fontWeight:700}}>❌ Sin existencia</span>}
+                  {entregaItems.length > 1 && <button className="btn btn-danger btn-sm" onClick={()=>setEntregaItems(entregaItems.filter((_,j)=>j!==idx))}>✕</button>}
+                </div>
+              );
+            })}
+            <button className="btn btn-secondary btn-sm" onClick={()=>setEntregaItems([...entregaItems, {articulo:DOTACION_ITEMS[0],cantidad:1}])} style={{marginTop:4}}>+ Agregar artículo</button>
           </div>
 
           <div style={{marginTop:20,display:'flex',gap:24,flexWrap:'wrap'}}>
@@ -1016,8 +1126,9 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
-            <button className="btn btn-primary" onClick={submitEntrega}>✅ Registrar Entrega</button>
-            <button className="btn btn-secondary" onClick={()=>{setTab('inventario');setShowEntregaForm(false);}}>Cancelar</button>
+            <button className="btn btn-primary" onClick={submitEntrega} disabled={validarStock().length > 0} style={{opacity:validarStock().length>0?0.5:1}}>✅ Registrar Entrega</button>
+            <button className="btn btn-secondary" onClick={()=>setTab('inventario')}>Cancelar</button>
+            {validarStock().length > 0 && <span style={{color:'#dc2626',fontSize:13,fontWeight:600,alignSelf:'center'}}>❌ No hay suficiente stock para esta entrega</span>}
           </div>
         </div>
       )}
