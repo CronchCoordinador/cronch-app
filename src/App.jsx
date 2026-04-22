@@ -601,19 +601,25 @@ function RegistroPanel({ empleados, setEmpleados }) {
 
   const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
   
-  const u = useCallback((field) => (e) => {
-    const val = e.target.value;
-    setForm(prev => {
-      const updated = {...prev, [field]: val};
-      if (field === 'fechaNac' && val) {
-        const birth = new Date(val); const t = new Date();
-        let age = t.getFullYear() - birth.getFullYear();
-        if (t.getMonth() < birth.getMonth() || (t.getMonth() === birth.getMonth() && t.getDate() < birth.getDate())) age--;
-        updated.edad = String(age);
-      }
-      return updated;
-    });
-  }, []);
+  const handlers = useRef({});
+  const u = (field) => {
+    if (!handlers.current[field]) {
+      handlers.current[field] = (e) => {
+        const val = e.target.value;
+        setForm(prev => {
+          const updated = {...prev, [field]: val};
+          if (field === 'fechaNac' && val) {
+            const birth = new Date(val); const t = new Date();
+            let age = t.getFullYear() - birth.getFullYear();
+            if (t.getMonth() < birth.getMonth() || (t.getMonth() === birth.getMonth() && t.getDate() < birth.getDate())) age--;
+            updated.edad = String(age);
+          }
+          return updated;
+        });
+      };
+    }
+    return handlers.current[field];
+  };
 
   const handleSubmit = () => {
     const e = {};
