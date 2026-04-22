@@ -589,6 +589,8 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 }
 
 // ==================== REGISTRO PERSONAL ====================
+
+// ==================== REGISTRO PERSONAL ====================
 function RegistroPanel({ empleados, setEmpleados }) {
   const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
   const [form, setForm] = useState({...empty});
@@ -598,19 +600,20 @@ function RegistroPanel({ empleados, setEmpleados }) {
   const [showForm, setShowForm] = useState(false);
 
   const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
-  const handleChange = (k, v) => {
-    const updated = {...form, [k]:v};
-    // Auto-calcular edad
-    if (k === 'fechaNac' && v) {
-      const birth = new Date(v);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const m = today.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      updated.edad = String(age);
-    }
-    setForm(updated);
-  };
+  
+  const u = useCallback((field) => (e) => {
+    const val = e.target.value;
+    setForm(prev => {
+      const updated = {...prev, [field]: val};
+      if (field === 'fechaNac' && val) {
+        const birth = new Date(val); const t = new Date();
+        let age = t.getFullYear() - birth.getFullYear();
+        if (t.getMonth() < birth.getMonth() || (t.getMonth() === birth.getMonth() && t.getDate() < birth.getDate())) age--;
+        updated.edad = String(age);
+      }
+      return updated;
+    });
+  }, []);
 
   const handleSubmit = () => {
     const e = {};
@@ -618,64 +621,26 @@ function RegistroPanel({ empleados, setEmpleados }) {
     setErrors(e);
     if (Object.keys(e).length) { alert('Por favor complete todos los campos obligatorios marcados con *'); return; }
     if (editIdx !== null) {
-      const updated = [...empleados];
-      updated[editIdx] = {...form};
-      setEmpleados(updated);
-      setEditIdx(null);
+      const updated = [...empleados]; updated[editIdx] = {...form}; setEmpleados(updated); setEditIdx(null);
     } else {
-      setEmpleados([...empleados, {...form}]);
-      sendToSheet('addEmpleado', form);
+      setEmpleados([...empleados, {...form}]); sendToSheet('addEmpleado', form);
     }
-    setForm({...empty});
-    setShowForm(false);
+    setForm({...empty}); setShowForm(false);
   };
 
   const handleEdit = (i) => { setForm({...empleados[i]}); setEditIdx(i); setShowForm(true); };
   const handleDelete = (i) => { if (confirm('¿Eliminar este empleado?')) setEmpleados(empleados.filter((_,j) => j !== i)); };
-
-  const filtered = empleados.filter(e => {
-    const s = search.toLowerCase();
-    return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s);
-  });
-
-  const renderField = (label,field,type,opts,req) => (
-    <div className="form-group" key={field}>
-      <label>{label}{req!==false?' *':''}</label>
-      {opts ? (
-        <select className={errors[field]?'error':''} value={form[field]||''} onChange={e=>handleChange(field,e.target.value)}>
-          {opts.map(o=><option key={o}>{o}</option>)}
-        </select>
-      ) : (
-        <input type={type||'text'} className={errors[field]?'error':''} value={form[field]||''} onChange={e=>handleChange(field,e.target.value)})}
-      )}
-    </div>
-  );
+  const filtered = empleados.filter(e => { const s = search.toLowerCase(); return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s); });
+  const ec = (f) => errors[f] ? 'error' : '';
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Registro de Personal</h1><p>Gestión completa de empleados del restaurante</p>
-      </div>
-
+      <div className="page-header"><h1>Registro de Personal</h1><p>Gestión completa de empleados del restaurante</p></div>
       <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        <button className="btn btn-primary" onClick={()=>{setForm({...empty});setEditIdx(null);setShowForm(!showForm);}}>
-          {showForm ? '✕ Cerrar Formulario' : '+ Nuevo Empleado'}
-        </button>
+        <button className="btn btn-primary" onClick={()=>{setForm({...empty});setEditIdx(null);setShowForm(!showForm);}}>{showForm ? '✕ Cerrar Formulario' : '+ Nuevo Empleado'}</button>
         <ExportButton label="Exportar Empleados" onClick={()=>exportToCSV(empleados,[
-          {label:'Apellidos',key:'apellidos'},{label:'Nombres',key:'nombres'},{label:'Tipo Doc',key:'tipoDoc'},{label:'Documento',key:'documento'},
-          {label:'Ciudad Expedición',key:'ciudadExpedicion'},{label:'Fecha Expedición',key:'fechaExpedicion'},
-          {label:'Fecha Nacimiento',key:'fechaNac'},{label:'Edad',key:'edad'},{label:'Lugar Nacimiento',key:'lugarNacimiento'},
-          {label:'Género',key:'genero'},{label:'Estado Civil',key:'estadoCivil'},{label:'RH',key:'rh'},{label:'Nivel Educativo',key:'nivelEducativo'},
-          {label:'Salario',key:'salario'},{label:'Tipo Contrato',key:'tipoContrato'},{label:'Vinculación',key:'tipoVinculacion'},
-          {label:'Fecha Ingreso',key:'fechaIngreso'},{label:'Fecha Terminación',key:'fechaTerminacion'},{label:'Fecha Retiro',key:'fechaRetiro'},
-          {label:'Dirección',key:'direccion'},{label:'Barrio',key:'barrio'},{label:'Ciudad',key:'ciudad'},
-          {label:'Teléfono',key:'telefono'},{label:'Correo',key:'correo'},
-          {label:'Contacto Emergencia',key:'contactoEmergenciaNombre'},{label:'Tel Emergencia',key:'contactoEmergenciaNumero'},{label:'Parentesco',key:'contactoEmergenciaParentesco'},
-          {label:'EPS',key:'eps'},{label:'Pensión',key:'pension'},{label:'Cesantías',key:'cesantias'},{label:'ARL',key:'arl'},{label:'Caja Compensación',key:'cajaCompensacion'},
-          {label:'Banco',key:'banco'},{label:'Nº Cuenta',key:'numeroCuenta'},
-          {label:'Cargo',key:'cargo'},{label:'Sub Dirección',key:'subDireccion'},{label:'Sede',key:'sede'},
-          {label:'Talla Pantalón',key:'tallaPantalon'},{label:'Talla Chaqueta',key:'tallaChaqueta'},{label:'Talla Camisa',key:'tallaCamisa'},{label:'Talla Zapatos',key:'tallaZapatos'}
-        ],'CRONCH_Empleados')})}
+          {label:'Apellidos',key:'apellidos'},{label:'Nombres',key:'nombres'},{label:'Tipo Doc',key:'tipoDoc'},{label:'Documento',key:'documento'},{label:'Ciudad Expedición',key:'ciudadExpedicion'},{label:'Fecha Expedición',key:'fechaExpedicion'},{label:'Fecha Nacimiento',key:'fechaNac'},{label:'Edad',key:'edad'},{label:'Lugar Nacimiento',key:'lugarNacimiento'},{label:'Género',key:'genero'},{label:'Estado Civil',key:'estadoCivil'},{label:'RH',key:'rh'},{label:'Nivel Educativo',key:'nivelEducativo'},{label:'Salario',key:'salario'},{label:'Tipo Contrato',key:'tipoContrato'},{label:'Vinculación',key:'tipoVinculacion'},{label:'Fecha Ingreso',key:'fechaIngreso'},{label:'Fecha Terminación',key:'fechaTerminacion'},{label:'Fecha Retiro',key:'fechaRetiro'},{label:'Dirección',key:'direccion'},{label:'Barrio',key:'barrio'},{label:'Ciudad',key:'ciudad'},{label:'Teléfono',key:'telefono'},{label:'Correo',key:'correo'},{label:'Contacto Emergencia',key:'contactoEmergenciaNombre'},{label:'Tel Emergencia',key:'contactoEmergenciaNumero'},{label:'Parentesco',key:'contactoEmergenciaParentesco'},{label:'EPS',key:'eps'},{label:'Pensión',key:'pension'},{label:'Cesantías',key:'cesantias'},{label:'ARL',key:'arl'},{label:'Caja Compensación',key:'cajaCompensacion'},{label:'Banco',key:'banco'},{label:'Nº Cuenta',key:'numeroCuenta'},{label:'Cargo',key:'cargo'},{label:'Sub Dirección',key:'subDireccion'},{label:'Sede',key:'sede'},{label:'Talla Pantalón',key:'tallaPantalon'},{label:'Talla Chaqueta',key:'tallaChaqueta'},{label:'Talla Camisa',key:'tallaCamisa'},{label:'Talla Zapatos',key:'tallaZapatos'}
+        ],'CRONCH_Empleados')} />
       </div>
 
       {showForm && (
@@ -684,75 +649,75 @@ function RegistroPanel({ empleados, setEmpleados }) {
           
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
-            {renderField("Tipo Documento","tipoDoc",null,TIPOS_DOC)}
-            {renderField("Nº Documento","documento")}
-            {renderField("Ciudad de Expedición","ciudadExpedicion")}
-            {renderField("Fecha de Expedición","fechaExpedicion","date")}
-            {renderField("Apellidos","apellidos")}
-            {renderField("Nombres","nombres")}
+            <div className="form-group"><label>Tipo Documento *</label><select className={ec('tipoDoc')} value={form.tipoDoc} onChange={u('tipoDoc')}>{TIPOS_DOC.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Nº Documento *</label><input className={ec('documento')} value={form.documento} onChange={u('documento')} /></div>
+            <div className="form-group"><label>Ciudad de Expedición *</label><input className={ec('ciudadExpedicion')} value={form.ciudadExpedicion} onChange={u('ciudadExpedicion')} /></div>
+            <div className="form-group"><label>Fecha de Expedición *</label><input type="date" className={ec('fechaExpedicion')} value={form.fechaExpedicion} onChange={u('fechaExpedicion')} /></div>
+            <div className="form-group"><label>Apellidos *</label><input className={ec('apellidos')} value={form.apellidos} onChange={u('apellidos')} /></div>
+            <div className="form-group"><label>Nombres *</label><input className={ec('nombres')} value={form.nombres} onChange={u('nombres')} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
           <div className="form-grid">
-            {renderField("Fecha de Nacimiento","fechaNac","date")}
+            <div className="form-group"><label>Fecha de Nacimiento *</label><input type="date" className={ec('fechaNac')} value={form.fechaNac} onChange={u('fechaNac')} /></div>
             <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
-            {renderField("Lugar de Nacimiento","lugarNacimiento")}
-            {renderField("Género","genero",null,GENEROS)}
-            {renderField("Estado Civil","estadoCivil",null,ESTADOS_CIVILES)}
-            {renderField("RH","rh",null,RH_LIST)}
-            {renderField("Nivel Educativo","nivelEducativo",null,NIVEL_EDUCATIVO)}
+            <div className="form-group"><label>Lugar de Nacimiento *</label><input className={ec('lugarNacimiento')} value={form.lugarNacimiento} onChange={u('lugarNacimiento')} /></div>
+            <div className="form-group"><label>Género *</label><select value={form.genero} onChange={u('genero')}>{GENEROS.map(g=><option key={g}>{g}</option>)}</select></div>
+            <div className="form-group"><label>Estado Civil *</label><select value={form.estadoCivil} onChange={u('estadoCivil')}>{ESTADOS_CIVILES.map(x=><option key={x}>{x}</option>)}</select></div>
+            <div className="form-group"><label>RH *</label><select value={form.rh} onChange={u('rh')}>{RH_LIST.map(r=><option key={r}>{r}</option>)}</select></div>
+            <div className="form-group"><label>Nivel Educativo *</label><select value={form.nivelEducativo} onChange={u('nivelEducativo')}>{NIVEL_EDUCATIVO.map(n=><option key={n}>{n}</option>)}</select></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
           <div className="form-grid">
-            {renderField("Dirección de Vivienda","direccion")}
-            {renderField("Barrio","barrio")}
-            {renderField("Ciudad","ciudad")}
-            {renderField("Teléfono","telefono")}
-            {renderField("Correo Electrónico","correo","email")}
+            <div className="form-group"><label>Dirección de Vivienda *</label><input className={ec('direccion')} value={form.direccion} onChange={u('direccion')} /></div>
+            <div className="form-group"><label>Barrio *</label><input className={ec('barrio')} value={form.barrio} onChange={u('barrio')} /></div>
+            <div className="form-group"><label>Ciudad *</label><input className={ec('ciudad')} value={form.ciudad} onChange={u('ciudad')} /></div>
+            <div className="form-group"><label>Teléfono *</label><input className={ec('telefono')} value={form.telefono} onChange={u('telefono')} /></div>
+            <div className="form-group"><label>Correo Electrónico *</label><input type="email" className={ec('correo')} value={form.correo} onChange={u('correo')} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
           <div className="form-grid">
-            {renderField("Nombre del Contacto","contactoEmergenciaNombre")}
-            {renderField("Número de Contacto","contactoEmergenciaNumero")}
-            {renderField("Parentesco","contactoEmergenciaParentesco")}
+            <div className="form-group"><label>Nombre del Contacto *</label><input className={ec('contactoEmergenciaNombre')} value={form.contactoEmergenciaNombre} onChange={u('contactoEmergenciaNombre')} /></div>
+            <div className="form-group"><label>Número de Contacto *</label><input className={ec('contactoEmergenciaNumero')} value={form.contactoEmergenciaNumero} onChange={u('contactoEmergenciaNumero')} /></div>
+            <div className="form-group"><label>Parentesco *</label><input className={ec('contactoEmergenciaParentesco')} value={form.contactoEmergenciaParentesco} onChange={u('contactoEmergenciaParentesco')} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
           <div className="form-grid">
-            {renderField("Cargo","cargo",null,CARGOS)}
-            {renderField("Sub Dirección","subDireccion",null,SUB_DIRECCIONES)}
-            {renderField("Sede","sede",null,SEDES)}
-            {renderField("Tipo Vinculación","tipoVinculacion",null,TIPOS_VINCULACION)}
-            {renderField("Tipo de Contrato","tipoContrato",null,TIPOS_CONTRATO)}
-            {renderField("Salario","salario","number")}
-            {renderField("Fecha de Ingreso","fechaIngreso","date")}
-            {renderField("Fecha Terminación Contrato","fechaTerminacion","date",null,false)}
-            {renderField("Fecha de Retiro","fechaRetiro","date",null,false)}
+            <div className="form-group"><label>Cargo *</label><select value={form.cargo} onChange={u('cargo')}>{CARGOS.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div className="form-group"><label>Sub Dirección *</label><select value={form.subDireccion} onChange={u('subDireccion')}>{SUB_DIRECCIONES.map(s=><option key={s}>{s}</option>)}</select></div>
+            <div className="form-group"><label>Sede *</label><select value={form.sede} onChange={u('sede')}>{SEDES.map(s=><option key={s}>{s}</option>)}</select></div>
+            <div className="form-group"><label>Tipo Vinculación *</label><select value={form.tipoVinculacion} onChange={u('tipoVinculacion')}>{TIPOS_VINCULACION.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Tipo de Contrato *</label><select value={form.tipoContrato} onChange={u('tipoContrato')}>{TIPOS_CONTRATO.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Salario *</label><input type="number" className={ec('salario')} value={form.salario} onChange={u('salario')} /></div>
+            <div className="form-group"><label>Fecha de Ingreso *</label><input type="date" className={ec('fechaIngreso')} value={form.fechaIngreso} onChange={u('fechaIngreso')} /></div>
+            <div className="form-group"><label>Fecha Terminación Contrato</label><input type="date" value={form.fechaTerminacion||''} onChange={u('fechaTerminacion')} /></div>
+            <div className="form-group"><label>Fecha de Retiro</label><input type="date" value={form.fechaRetiro||''} onChange={u('fechaRetiro')} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏥 SEGURIDAD SOCIAL</p>
           <div className="form-grid">
-            {renderField("EPS","eps",null,EPS_LIST)}
-            {renderField("Fondo de Pensión","pension",null,PENSION_LIST)}
-            {renderField("Cesantías","cesantias",null,CESANTIAS_LIST)}
-            {renderField("ARL","arl",null,ARL_LIST)}
-            {renderField("Caja de Compensación","cajaCompensacion",null,CAJA_COMP_LIST)}
+            <div className="form-group"><label>EPS *</label><select value={form.eps} onChange={u('eps')}>{EPS_LIST.map(x=><option key={x}>{x}</option>)}</select></div>
+            <div className="form-group"><label>Fondo de Pensión *</label><select value={form.pension} onChange={u('pension')}>{PENSION_LIST.map(p=><option key={p}>{p}</option>)}</select></div>
+            <div className="form-group"><label>Cesantías *</label><select value={form.cesantias} onChange={u('cesantias')}>{CESANTIAS_LIST.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div className="form-group"><label>ARL *</label><select value={form.arl} onChange={u('arl')}>{ARL_LIST.map(a=><option key={a}>{a}</option>)}</select></div>
+            <div className="form-group"><label>Caja de Compensación *</label><select value={form.cajaCompensacion} onChange={u('cajaCompensacion')}>{CAJA_COMP_LIST.map(c=><option key={c}>{c}</option>)}</select></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
           <div className="form-grid">
-            {renderField("Cuenta Bancaria","banco",null,BANCOS)}
-            {renderField("Número de Cuenta","numeroCuenta")}
+            <div className="form-group"><label>Cuenta Bancaria *</label><select value={form.banco} onChange={u('banco')}>{BANCOS.map(b=><option key={b}>{b}</option>)}</select></div>
+            <div className="form-group"><label>Número de Cuenta *</label><input className={ec('numeroCuenta')} value={form.numeroCuenta} onChange={u('numeroCuenta')} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
           <div className="form-grid">
-            {renderField("Talla Pantalón","tallaPantalon",null,TALLAS_PANTALON)}
-            {renderField("Talla Chaqueta","tallaChaqueta",null,TALLAS_CHAQUETA)}
-            {renderField("Talla Camisa","tallaCamisa",null,TALLAS_CAMISA)}
-            {renderField("Talla Calzado","tallaZapatos",null,TALLAS_ZAPATOS)}
+            <div className="form-group"><label>Talla Pantalón *</label><select value={form.tallaPantalon} onChange={u('tallaPantalon')}>{TALLAS_PANTALON.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Talla Chaqueta *</label><select value={form.tallaChaqueta} onChange={u('tallaChaqueta')}>{TALLAS_CHAQUETA.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Talla Camisa *</label><select value={form.tallaCamisa} onChange={u('tallaCamisa')}>{TALLAS_CAMISA.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div className="form-group"><label>Talla Calzado *</label><select value={form.tallaZapatos} onChange={u('tallaZapatos')}>{TALLAS_ZAPATOS.map(t=><option key={t}>{t}</option>)}</select></div>
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
@@ -763,10 +728,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
       )}
 
       <div className="card">
-        <div className="search-bar">
-          <span className="search-icon">🔍</span>
-          <input placeholder="Buscar por nombre o documento..." value={search} onChange={e=>setSearch(e.target.value)})}
-        </div>
+        <div className="search-bar"><span className="search-icon">🔍</span><input placeholder="Buscar por nombre o documento..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
         {filtered.length === 0 ? (
           <div className="empty-state"><div className="icon">👤</div><p>No hay empleados registrados aún</p></div>
         ) : (
