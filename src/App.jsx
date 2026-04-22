@@ -1218,7 +1218,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         .bg-image { position: fixed; }
       }
     </style></head><body>
-      <div class="bg-image"><img src="${WATERMARK_IMG}")}</div>
+      <div class="bg-image"><img src="${WATERMARK_IMG}" /></div>
       <p>Girardot, ${fechaTexto}</p>
       <div class="header">
         <h2>GERENTE GENERAL DE CRONCH ARTESANALMENTE OBLEA SAS</h2>
