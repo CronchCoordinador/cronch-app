@@ -918,7 +918,9 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
 
       {tab === 'inventario' && (
         <div className="card fade-in">
-          <div className="card-title">📦 Stock de Dotación</div>
+          <div className="card-title">📦 Stock de Dotación
+            <button className="btn btn-danger btn-sm" style={{marginLeft:12,fontSize:11}} onClick={()=>{if(confirm('¿Reiniciar todo el inventario a 0? Esto borrará stock y precios.')){const reset={};DOTACION_ITEMS.forEach(it=>{reset[it]={stock:0,precio:0};});setInventario(reset);}}}>🔄 Reiniciar Inventario</button>
+          </div>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Artículo</th><th>Stock Actual</th><th>Precio Unitario</th><th>Valor Total</th><th>Estado</th></tr></thead>
@@ -1040,7 +1042,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
           ) : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Fecha</th><th>Empleado</th><th>Documento</th><th>Artículos</th><th>Responsable</th><th>Firma</th><th>Foto</th><th>Acta</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Empleado</th><th>Documento</th><th>Artículos</th><th>Responsable</th><th>Firma</th><th>Foto</th><th>Acta</th><th>Acción</th></tr></thead>
                 <tbody>
                   {entregas.map((e,i) => (
                     <tr key={i}>
@@ -1058,6 +1060,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
                         const h = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Acta - ${e.empleadoNombre}</title><style>@page{size:letter;margin:2cm 2.5cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6}h1{text-align:center;font-size:16pt}h2{text-align:center;font-size:13pt;font-weight:normal;color:#555}table{width:100%;border-collapse:collapse;margin:15px 0}th{background:#2a5cc7;color:#fff;padding:8px}.firmas{display:flex;justify-content:space-between;margin-top:40px}.firma-box{text-align:center;width:45%}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h1>ACTA DE ENTREGA DE DOTACIÓN</h1><h2>Cronch Artesanalmente Oblea S.A.S — NIT 901.481.136-4</h2><hr style="border:1px solid #2a5cc7;margin-bottom:20px"><div><p><strong>Fecha:</strong> ${e.fecha}</p><p><strong>Empleado:</strong> ${e.empleadoNombre}</p><p><strong>Documento:</strong> ${e.empleadoDoc}</p><p><strong>Responsable:</strong> ${e.responsable}</p></div><table><thead><tr><th>Artículo</th><th>Cantidad</th></tr></thead><tbody>${itemsH}</tbody></table><p style="margin-top:20px;text-align:justify">Yo, <strong>${e.empleadoNombre}</strong>, identificado(a) con documento N° <strong>${e.empleadoDoc}</strong>, declaro haber recibido a mi entera satisfacción los elementos de dotación relacionados.</p><div class="firmas"><div class="firma-box"><p><strong>Quien recibe:</strong></p>${fImg}<p>${e.empleadoNombre}</p></div><div class="firma-box"><p><strong>Quien entrega:</strong></p><p style="margin-top:40px">_________________________</p><p>${e.responsable}</p></div></div>${pImg}</body></html>`;
                         const w = window.open('','_blank'); w.document.write(h); w.document.close(); setTimeout(()=>{w.print();},500);
                       }}>📄 PDF</button></td>
+                      <td><button className="btn btn-danger btn-sm" onClick={()=>{if(confirm('¿Eliminar esta acta de entrega?'))setEntregas(entregas.filter((_,j)=>j!==i));}}>🗑️</button></td>
                     </tr>
                   ))}
                 </tbody>
