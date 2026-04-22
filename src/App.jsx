@@ -590,26 +590,6 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 
 // ==================== REGISTRO PERSONAL ====================
 
-function FormInput({ label, name, type, value, onChange }) {
-  return (
-    <div className="form-group">
-      <label>{label}</label>
-      <input type={type || 'text'} name={name} value={value || ''} onChange={onChange} />
-    </div>
-  );
-}
-
-function FormSelect({ label, name, value, onChange, options }) {
-  return (
-    <div className="form-group">
-      <label>{label}</label>
-      <select name={name} value={value || ''} onChange={onChange}>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-}
-
 function RegistroPanel({ empleados, setEmpleados }) {
   const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
   const [form, setForm] = useState({...empty});
@@ -669,75 +649,75 @@ function RegistroPanel({ empleados, setEmpleados }) {
           
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
-            <FormSelect label="Tipo Documento *" name="tipoDoc" value={form.tipoDoc} onChange={onChange} options={TIPOS_DOC} />
-            <FormInput label="Nº Documento *" name="documento" value={form.documento} onChange={onChange} />
-            <FormInput label="Ciudad de Expedición *" name="ciudadExpedicion" value={form.ciudadExpedicion} onChange={onChange} />
-            <FormInput label="Fecha de Expedición *" name="fechaExpedicion" type="date" value={form.fechaExpedicion} onChange={onChange} />
-            <FormInput label="Apellidos *" name="apellidos" value={form.apellidos} onChange={onChange} />
-            <FormInput label="Nombres *" name="nombres" value={form.nombres} onChange={onChange} />
+            <div className="form-group"><label>Tipo Documento *</label><select name="tipoDoc" value={form.tipoDoc||''} onChange={onChange}>{TIPOS_DOC.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Nº Documento *</label><input type="text" name="documento" value={form.documento||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Ciudad de Expedición *</label><input type="text" name="ciudadExpedicion" value={form.ciudadExpedicion||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Fecha de Expedición *</label><input type="date" name="fechaExpedicion" value={form.fechaExpedicion||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Apellidos *</label><input type="text" name="apellidos" value={form.apellidos||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Nombres *</label><input type="text" name="nombres" value={form.nombres||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
           <div className="form-grid">
-            <FormInput label="Fecha de Nacimiento *" name="fechaNac" type="date" value={form.fechaNac} onChange={onChange} />
+            <div className="form-group"><label>Fecha de Nacimiento *</label><input type="date" name="fechaNac" value={form.fechaNac||''} onChange={onChange} /></div>
             <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
-            <FormInput label="Lugar de Nacimiento *" name="lugarNacimiento" value={form.lugarNacimiento} onChange={onChange} />
-            <FormSelect label="Género *" name="genero" value={form.genero} onChange={onChange} options={GENEROS} />
-            <FormSelect label="Estado Civil *" name="estadoCivil" value={form.estadoCivil} onChange={onChange} options={ESTADOS_CIVILES} />
-            <FormSelect label="RH *" name="rh" value={form.rh} onChange={onChange} options={RH_LIST} />
-            <FormSelect label="Nivel Educativo *" name="nivelEducativo" value={form.nivelEducativo} onChange={onChange} options={NIVEL_EDUCATIVO} />
+            <div className="form-group"><label>Lugar de Nacimiento *</label><input type="text" name="lugarNacimiento" value={form.lugarNacimiento||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Género *</label><select name="genero" value={form.genero||''} onChange={onChange}>{GENEROS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Estado Civil *</label><select name="estadoCivil" value={form.estadoCivil||''} onChange={onChange}>{ESTADOS_CIVILES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>RH *</label><select name="rh" value={form.rh||''} onChange={onChange}>{RH_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Nivel Educativo *</label><select name="nivelEducativo" value={form.nivelEducativo||''} onChange={onChange}>{NIVEL_EDUCATIVO.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
           <div className="form-grid">
-            <FormInput label="Dirección de Vivienda *" name="direccion" value={form.direccion} onChange={onChange} />
-            <FormInput label="Barrio *" name="barrio" value={form.barrio} onChange={onChange} />
-            <FormInput label="Ciudad *" name="ciudad" value={form.ciudad} onChange={onChange} />
-            <FormInput label="Teléfono *" name="telefono" value={form.telefono} onChange={onChange} />
-            <FormInput label="Correo Electrónico *" name="correo" type="email" value={form.correo} onChange={onChange} />
+            <div className="form-group"><label>Dirección de Vivienda *</label><input type="text" name="direccion" value={form.direccion||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Barrio *</label><input type="text" name="barrio" value={form.barrio||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Ciudad *</label><input type="text" name="ciudad" value={form.ciudad||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Teléfono *</label><input type="text" name="telefono" value={form.telefono||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Correo Electrónico *</label><input type="email" name="correo" value={form.correo||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
           <div className="form-grid">
-            <FormInput label="Nombre del Contacto *" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre} onChange={onChange} />
-            <FormInput label="Número de Contacto *" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero} onChange={onChange} />
-            <FormInput label="Parentesco *" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco} onChange={onChange} />
+            <div className="form-group"><label>Nombre del Contacto *</label><input type="text" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Número de Contacto *</label><input type="text" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Parentesco *</label><input type="text" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
           <div className="form-grid">
-            <FormSelect label="Cargo *" name="cargo" value={form.cargo} onChange={onChange} options={CARGOS} />
-            <FormSelect label="Sub Dirección *" name="subDireccion" value={form.subDireccion} onChange={onChange} options={SUB_DIRECCIONES} />
-            <FormSelect label="Sede *" name="sede" value={form.sede} onChange={onChange} options={SEDES} />
-            <FormSelect label="Tipo Vinculación *" name="tipoVinculacion" value={form.tipoVinculacion} onChange={onChange} options={TIPOS_VINCULACION} />
-            <FormSelect label="Tipo de Contrato *" name="tipoContrato" value={form.tipoContrato} onChange={onChange} options={TIPOS_CONTRATO} />
-            <FormInput label="Salario *" name="salario" type="number" value={form.salario} onChange={onChange} />
-            <FormInput label="Fecha de Ingreso *" name="fechaIngreso" type="date" value={form.fechaIngreso} onChange={onChange} />
-            <FormInput label="Fecha Terminación Contrato" name="fechaTerminacion" type="date" value={form.fechaTerminacion} onChange={onChange} />
-            <FormInput label="Fecha de Retiro" name="fechaRetiro" type="date" value={form.fechaRetiro} onChange={onChange} />
+            <div className="form-group"><label>Cargo *</label><select name="cargo" value={form.cargo||''} onChange={onChange}>{CARGOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Sub Dirección *</label><select name="subDireccion" value={form.subDireccion||''} onChange={onChange}>{SUB_DIRECCIONES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Sede *</label><select name="sede" value={form.sede||''} onChange={onChange}>{SEDES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Tipo Vinculación *</label><select name="tipoVinculacion" value={form.tipoVinculacion||''} onChange={onChange}>{TIPOS_VINCULACION.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Tipo de Contrato *</label><select name="tipoContrato" value={form.tipoContrato||''} onChange={onChange}>{TIPOS_CONTRATO.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Salario *</label><input type="number" name="salario" value={form.salario||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Fecha de Ingreso *</label><input type="date" name="fechaIngreso" value={form.fechaIngreso||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Fecha Terminación Contrato</label><input type="date" name="fechaTerminacion" value={form.fechaTerminacion||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Fecha de Retiro</label><input type="date" name="fechaRetiro" value={form.fechaRetiro||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏥 SEGURIDAD SOCIAL</p>
           <div className="form-grid">
-            <FormSelect label="EPS *" name="eps" value={form.eps} onChange={onChange} options={EPS_LIST} />
-            <FormSelect label="Fondo de Pensión *" name="pension" value={form.pension} onChange={onChange} options={PENSION_LIST} />
-            <FormSelect label="Cesantías *" name="cesantias" value={form.cesantias} onChange={onChange} options={CESANTIAS_LIST} />
-            <FormSelect label="ARL *" name="arl" value={form.arl} onChange={onChange} options={ARL_LIST} />
-            <FormSelect label="Caja de Compensación *" name="cajaCompensacion" value={form.cajaCompensacion} onChange={onChange} options={CAJA_COMP_LIST} />
+            <div className="form-group"><label>EPS *</label><select name="eps" value={form.eps||''} onChange={onChange}>{EPS_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Fondo de Pensión *</label><select name="pension" value={form.pension||''} onChange={onChange}>{PENSION_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Cesantías *</label><select name="cesantias" value={form.cesantias||''} onChange={onChange}>{CESANTIAS_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>ARL *</label><select name="arl" value={form.arl||''} onChange={onChange}>{ARL_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Caja de Compensación *</label><select name="cajaCompensacion" value={form.cajaCompensacion||''} onChange={onChange}>{CAJA_COMP_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
           <div className="form-grid">
-            <FormSelect label="Cuenta Bancaria *" name="banco" value={form.banco} onChange={onChange} options={BANCOS} />
-            <FormInput label="Número de Cuenta *" name="numeroCuenta" value={form.numeroCuenta} onChange={onChange} />
+            <div className="form-group"><label>Cuenta Bancaria *</label><select name="banco" value={form.banco||''} onChange={onChange}>{BANCOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Número de Cuenta *</label><input type="text" name="numeroCuenta" value={form.numeroCuenta||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
           <div className="form-grid">
-            <FormSelect label="Talla Pantalón *" name="tallaPantalon" value={form.tallaPantalon} onChange={onChange} options={TALLAS_PANTALON} />
-            <FormSelect label="Talla Chaqueta *" name="tallaChaqueta" value={form.tallaChaqueta} onChange={onChange} options={TALLAS_CHAQUETA} />
-            <FormSelect label="Talla Camisa *" name="tallaCamisa" value={form.tallaCamisa} onChange={onChange} options={TALLAS_CAMISA} />
-            <FormSelect label="Talla Calzado *" name="tallaZapatos" value={form.tallaZapatos} onChange={onChange} options={TALLAS_ZAPATOS} />
+            <div className="form-group"><label>Talla Pantalón *</label><select name="tallaPantalon" value={form.tallaPantalon||''} onChange={onChange}>{TALLAS_PANTALON.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Talla Chaqueta *</label><select name="tallaChaqueta" value={form.tallaChaqueta||''} onChange={onChange}>{TALLAS_CHAQUETA.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Talla Camisa *</label><select name="tallaCamisa" value={form.tallaCamisa||''} onChange={onChange}>{TALLAS_CAMISA.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+            <div className="form-group"><label>Talla Calzado *</label><select name="tallaZapatos" value={form.tallaZapatos||''} onChange={onChange}>{TALLAS_ZAPATOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
