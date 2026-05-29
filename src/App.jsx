@@ -87,6 +87,7 @@ const KEYS = {
   vacaciones: 'cronch-vacaciones',
   user: 'cronch-user',
   solicDotacion: 'cronch-solic-dotacion',
+  desprendibles: 'cronch-desprendibles',
 };
 
 const loadData = async (key, fallback) => {
@@ -323,6 +324,7 @@ export default function App() {
   const [novedades, setNovedades] = useState([]);
   const [vacaciones, setVacaciones] = useState([]);
   const [solicDotacion, setSolicDotacion] = useState([]);
+  const [desprendibles, setDesprendibles] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -340,6 +342,7 @@ export default function App() {
       setNovedades(await loadData(KEYS.novedades, []));
       setVacaciones(await loadData(KEYS.vacaciones, []));
       setSolicDotacion(await loadData(KEYS.solicDotacion, []));
+      setDesprendibles(await loadData(KEYS.desprendibles, []));
       setLoading(false);
     })();
   }, []);
@@ -353,6 +356,7 @@ export default function App() {
   const handleSetNovedades = useCallback((n) => { setNovedades(n); saveData(KEYS.novedades, n); }, []);
   const handleSetVacaciones = useCallback((v) => { setVacaciones(v); saveData(KEYS.vacaciones, v); }, []);
   const handleSetSolicDotacion = useCallback((s) => { setSolicDotacion(s); saveData(KEYS.solicDotacion, s); }, []);
+  const handleSetDesprendibles = useCallback((d) => { setDesprendibles(d); saveData(KEYS.desprendibles, d); }, []);
 
   if (loading) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'DM Sans',color:'#3b76f0' }}><div style={{textAlign:'center'}}><div style={{fontSize:48,marginBottom:12}}>🍽️</div><p>Cargando CRONCH...</p></div></div>;
 
@@ -366,6 +370,7 @@ export default function App() {
     { id: 'novedades', icon: '📝', label: 'Novedades Personal' },
     { id: 'vacaciones', icon: '🏖️', label: 'Vacaciones' },
     { id: 'solicdotacion', icon: '👗', label: 'Solicitud Dotación' },
+    { id: 'desprendibles', icon: '💰', label: 'Desprendibles de Pago' },
     { id: 'alertas', icon: '🔔', label: 'Alertas' },
   ];
 
@@ -410,11 +415,175 @@ export default function App() {
             {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={handleSetNovedades} empleados={empleados} user={user} />}
             {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={handleSetVacaciones} novedades={novedades} />}
             {panel === 'solicdotacion' && <SolicitudDotacionPanel solicDotacion={solicDotacion} setSolicDotacion={handleSetSolicDotacion} empleados={empleados} inventario={inventario} />}
+            {panel === 'desprendibles' && <DesprendiblesPanel desprendibles={desprendibles} setDesprendibles={handleSetDesprendibles} empleados={empleados} user={user} />}
             {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas} />}
           </div>
         </main>
       </div>
     </>
+  );
+}
+
+// ==================== DESPRENDIBLES DE PAGO ====================
+function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }) {
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filtroMes, setFiltroMes] = useState('todos');
+  const [visorPDF, setVisorPDF] = useState(null);
+  const [form, setForm] = useState({ empleadoDoc: '', empleadoNombre: '', mes: MESES[0], anio: new Date().getFullYear().toString(), pdf: null, pdfNombre: '' });
+  const pdfRef = useRef(null);
+
+  const ANIOS = [String(new Date().getFullYear()), String(new Date().getFullYear()-1), String(new Date().getFullYear()-2)];
+
+  const onChangeForm = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'empleadoDoc') {
+        const emp = empleados.find(em => em.documento === value);
+        updated.empleadoNombre = emp ? emp.nombres + ' ' + emp.apellidos : '';
+      }
+      return updated;
+    });
+  }, [empleados]);
+
+  const handlePDF = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.type !== 'application/pdf') { alert('Solo se permiten archivos PDF'); return; }
+    if (f.size > 5 * 1024 * 1024) { alert('El archivo no puede superar 5MB'); return; }
+    const r = new FileReader();
+    r.onload = (ev) => setForm(prev => ({ ...prev, pdf: ev.target.result, pdfNombre: f.name }));
+    r.readAsDataURL(f);
+  };
+
+  const handleSubmit = () => {
+    if (!form.empleadoDoc || !form.empleadoNombre) { alert('Seleccione un empleado'); return; }
+    if (!form.pdf) { alert('Debe cargar el PDF del desprendible'); return; }
+    const existe = desprendibles.find(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio);
+    if (existe) { if (!confirm(`Ya existe un desprendible para ${form.empleadoNombre} en ${form.mes} ${form.anio}. ¿Desea reemplazarlo?`)) return; }
+    const nuevo = { ...form, id: Date.now(), fechaSubida: new Date().toISOString(), subidoPor: user?.nombre || 'RRHH' };
+    const actualizados = existe
+      ? desprendibles.map(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio ? nuevo : d)
+      : [...desprendibles, nuevo];
+    setDesprendibles(actualizados);
+    setForm({ empleadoDoc: '', empleadoNombre: '', mes: MESES[0], anio: new Date().getFullYear().toString(), pdf: null, pdfNombre: '' });
+    setShowForm(false);
+    alert('✅ Desprendible cargado correctamente');
+  };
+
+  const handleDelete = (id) => {
+    if (confirm('¿Eliminar este desprendible?')) setDesprendibles(desprendibles.filter(d => d.id !== id));
+  };
+
+  const mesesDisponibles = [...new Set(desprendibles.map(d => d.mes))];
+
+  const filtered = desprendibles.filter(d => {
+    const matchSearch = !search || d.empleadoNombre.toLowerCase().includes(search.toLowerCase()) || d.empleadoDoc.includes(search);
+    const matchMes = filtroMes === 'todos' || d.mes === filtroMes;
+    return matchSearch && matchMes;
+  });
+
+  return (
+    <div>
+      <div className="page-header"><h1>Desprendibles de Pago</h1><p>Gestión y consulta de desprendibles mensuales del personal</p></div>
+
+      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap',alignItems:'center'}}>
+        <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Cargar Desprendible'}</button>
+        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+          <button style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroMes==='todos'?'#2a5cc7':'#e5e7eb'}`,background:filtroMes==='todos'?'#dbe8fe':'#fff',color:filtroMes==='todos'?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroMes('todos')}>Todos ({desprendibles.length})</button>
+          {mesesDisponibles.map(m=>(
+            <button key={m} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroMes===m?'#2a5cc7':'#e5e7eb'}`,background:filtroMes===m?'#dbe8fe':'#fff',color:filtroMes===m?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroMes(m)}>{m}</button>
+          ))}
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="card fade-in">
+          <div className="card-title">💰 Cargar Desprendible de Pago</div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Empleado *</label>
+              <select name="empleadoDoc" value={form.empleadoDoc} onChange={onChangeForm}>
+                <option value="">— Seleccionar empleado —</option>
+                {empleados.filter(e=>!e.fechaRetiro).sort((a,b)=>`${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`)).map(e=>(
+                  <option key={e.documento} value={e.documento}>{e.nombres} {e.apellidos} — {e.documento}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group"><label>Mes *</label>
+              <select name="mes" value={form.mes} onChange={onChangeForm}>
+                {MESES.map(m=><option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="form-group"><label>Año *</label>
+              <select name="anio" value={form.anio} onChange={onChangeForm}>
+                {ANIOS.map(a=><option key={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-group" style={{marginTop:12}}>
+            <label>Archivo PDF * <span style={{fontSize:11,color:'#6b7280'}}>(máx. 5MB)</span></label>
+            <input ref={pdfRef} type="file" accept="application/pdf" style={{display:'none'}} onChange={handlePDF} />
+            <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+              <button type="button" className="btn btn-secondary" onClick={()=>pdfRef.current.click()}>📎 {form.pdfNombre || 'Seleccionar PDF'}</button>
+              {form.pdf && <span style={{fontSize:12,color:'#16a34a',fontWeight:600}}>✅ PDF cargado</span>}
+            </div>
+          </div>
+          <div style={{marginTop:20,display:'flex',gap:10}}>
+            <button className="btn btn-primary" onClick={handleSubmit}>✅ Guardar Desprendible</button>
+            <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {visorPDF && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.7)',zIndex:2000,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'#fff',borderRadius:12,width:'100%',maxWidth:900,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 20px',borderBottom:'1px solid #e5e7eb'}}>
+              <div>
+                <strong style={{fontSize:15}}>{visorPDF.empleadoNombre}</strong>
+                <span style={{fontSize:13,color:'#6b7280',marginLeft:12}}>{visorPDF.mes} {visorPDF.anio}</span>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <a href={visorPDF.pdf} download={visorPDF.pdfNombre || `desprendible_${visorPDF.mes}_${visorPDF.anio}.pdf`} className="btn btn-primary btn-sm">⬇️ Descargar</a>
+                <button className="btn btn-secondary btn-sm" onClick={()=>setVisorPDF(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={visorPDF.pdf} style={{flex:1,border:'none',minHeight:500}} title="Desprendible PDF" />
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="search-bar"><span className="search-icon">🔍</span><input placeholder="Buscar por nombre o documento..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
+        {filtered.length === 0 ? (
+          <div className="empty-state"><div className="icon">💰</div><p>No hay desprendibles cargados aún</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Empleado</th><th>Documento</th><th>Período</th><th>Fecha Subida</th><th>Subido Por</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {filtered.sort((a,b)=>new Date(b.fechaSubida)-new Date(a.fechaSubida)).map(d=>(
+                  <tr key={d.id}>
+                    <td style={{fontWeight:500}}>{d.empleadoNombre}</td>
+                    <td>{d.empleadoDoc}</td>
+                    <td><span className="badge badge-blue">{d.mes} {d.anio}</span></td>
+                    <td style={{fontSize:12}}>{new Date(d.fechaSubida).toLocaleDateString('es-CO')}</td>
+                    <td style={{fontSize:12,color:'#6b7280'}}>{d.subidoPor}</td>
+                    <td style={{display:'flex',gap:6}}>
+                      <button className="btn btn-primary btn-sm" onClick={()=>setVisorPDF(d)}>👁️ Ver</button>
+                      <a href={d.pdf} download={d.pdfNombre||`desprendible_${d.mes}_${d.anio}.pdf`} className="btn btn-secondary btn-sm">⬇️</a>
+                      <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(d.id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
