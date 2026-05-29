@@ -90,12 +90,22 @@ const KEYS = {
 
 const loadData = async (key, fallback) => {
   try {
+    if (window.storage) {
+      const result = await window.storage.get(key);
+      return result && result.value ? JSON.parse(result.value) : fallback;
+    }
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : fallback;
   } catch { return fallback; }
 };
 const saveData = async (key, data) => {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { console.error(e); }
+  try {
+    if (window.storage) {
+      await window.storage.set(key, JSON.stringify(data));
+    } else {
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  } catch(e) { console.error(e); }
 };
 
 // ==================== EXPORT HELPERS ====================
@@ -277,7 +287,7 @@ function SignaturePad({ onSave, onCancel }) {
       <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: 8 }}>Dibuje su firma:</p>
       <canvas ref={canvasRef} width={400} height={150} className="sig-canvas"
         onMouseDown={start} onMouseMove={draw} onMouseUp={stop} onMouseLeave={stop}
-        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop} />
+        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop}></canvas>
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button className="btn btn-secondary btn-sm" onClick={clear}>Limpiar</button>
         <button className="btn btn-primary btn-sm" onClick={() => onSave(canvasRef.current.toDataURL())}>Guardar Firma</button>
@@ -342,17 +352,11 @@ export default function App() {
   }, []);
 
   const save = useCallback(async (key, data) => { await saveData(key, data); }, []);
-  const handleSetEmpleados = useCallback((e) => { setEmpleados(e); saveData(KEYS.empleados, e); }, []);
-  const handleSetInventario = useCallback((i) => { setInventario(i); saveData(KEYS.inventario, i); }, []);
-  const handleSetEntregas = useCallback((e) => { setEntregas(e); saveData(KEYS.entregas, e); }, []);
-  const handleSetSolicitudes = useCallback((s) => { setSolicitudes(s); saveData(KEYS.solicitudes, s); }, []);
-  const handleSetCertificados = useCallback((c) => { setCertificados(c); saveData(KEYS.certificados, c); }, []);
-  const handleSetNovedades = useCallback((n) => { setNovedades(n); saveData(KEYS.novedades, n); }, []);
-  const handleSetVacaciones = useCallback((v) => { setVacaciones(v); saveData(KEYS.vacaciones, v); }, []);
 
   if (loading) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'DM Sans',color:'#3b76f0' }}><div style={{textAlign:'center'}}><div style={{fontSize:48,marginBottom:12}}>🍽️</div><p>Cargando CRONCH...</p></div></div>;
 
-  if (!user) return <LoginPage onLogin={(u) => { setUser(u); save(KEYS.user, u); }} />;
+  if (!user) return <LoginPage onLogin={(u) => { setUser(u); save(KEYS.user, u); }})};
+
   const navItems = [
     { id: 'dashboard', icon: '📊', label: 'Informes' },
     { id: 'registro', icon: '👤', label: 'Registro Personal' },
@@ -397,14 +401,14 @@ export default function App() {
 
         <main className="main">
           <div className="fade-in">
-            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario} />}
-            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={handleSetEmpleados} />}
-            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={handleSetInventario} entregas={entregas} setEntregas={handleSetEntregas} empleados={empleados} user={user} />}
-            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={handleSetSolicitudes} />}
-            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={handleSetCertificados} />}
-            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={handleSetNovedades} empleados={empleados} user={user} />}
-            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={handleSetVacaciones} novedades={novedades} />}
-            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas} />}
+            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario}} />}}
+            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={(e)=>{setEmpleados(e);save(KEYS.empleados,e);}} />}
+            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={(i)=>{setInventario(i);save(KEYS.inventario,i);}} entregas={entregas} setEntregas={(e)=>{setEntregas(e);save(KEYS.entregas,e);}} empleados={empleados} user={user}} />}
+            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={(s)=>{setSolicitudes(s);save(KEYS.solicitudes,s);}} />}
+            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={(c)=>{setCertificados(c);save(KEYS.certificados,c);}} />}
+            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={(n)=>{setNovedades(n);save(KEYS.novedades,n);}} empleados={empleados} user={user}} />}
+            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={(v)=>{setVacaciones(v);save(KEYS.vacaciones,v);}} novedades={novedades}} />}
+            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas}} />}}
           </div>
         </main>
       </div>
@@ -596,10 +600,9 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 
 // ==================== REGISTRO PERSONAL ====================
 
-const EMPTY_EMPLEADO = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
-
 function RegistroPanel({ empleados, setEmpleados }) {
-  const [form, setForm] = useState({...EMPTY_EMPLEADO});
+  const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
+  const [form, setForm] = useState({...empty});
   const [errors, setErrors] = useState({});
   const [search, setSearch] = useState('');
   const [editIdx, setEditIdx] = useState(null);
@@ -607,7 +610,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
 
   const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
   
-  const onChange = useCallback((e) => {
+  const onChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => {
       const updated = {...prev, [name]: value};
@@ -619,7 +622,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
       }
       return updated;
     });
-  }, []);
+  };
 
   const handleSubmit = () => {
     const e = {};
@@ -631,7 +634,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
     } else {
       setEmpleados([...empleados, {...form}]); sendToSheet('addEmpleado', form);
     }
-    setForm({...EMPTY_EMPLEADO}); setShowForm(false);
+    setForm({...empty}); setShowForm(false);
   };
 
   const handleEdit = (i) => { setForm({...empleados[i]}); setEditIdx(i); setShowForm(true); };
@@ -651,24 +654,24 @@ function RegistroPanel({ empleados, setEmpleados }) {
       </div>
 
       {showForm && (
-        <div className="card">
+        <div className="card" onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}>
           <div className="card-title">{editIdx !== null ? '✏️ Editar Empleado' : '👤 Registrar Nuevo Empleado'}</div>
           
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
             <div className="form-group"><label>Tipo Documento *</label><select name="tipoDoc" value={form.tipoDoc||''} onChange={onChange}>{TIPOS_DOC.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-            <div className="form-group"><label>Nº Documento *</label><input type="text" name="documento" value={form.documento||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Ciudad de Expedición *</label><input type="text" name="ciudadExpedicion" value={form.ciudadExpedicion||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Nº Documento *</label><input type="text" name="documento" value={form.documento||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Ciudad de Expedición *</label><input type="text" name="ciudadExpedicion" value={form.ciudadExpedicion||''} onChange={onChange} autoComplete="off" /></div>
             <div className="form-group"><label>Fecha de Expedición *</label><input type="date" name="fechaExpedicion" value={form.fechaExpedicion||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Apellidos *</label><input type="text" name="apellidos" value={form.apellidos||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Nombres *</label><input type="text" name="nombres" value={form.nombres||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Apellidos *</label><input type="text" name="apellidos" value={form.apellidos||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Nombres *</label><input type="text" name="nombres" value={form.nombres||''} onChange={onChange} autoComplete="off" /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
           <div className="form-grid">
             <div className="form-group"><label>Fecha de Nacimiento *</label><input type="date" name="fechaNac" value={form.fechaNac||''} onChange={onChange} /></div>
             <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
-            <div className="form-group"><label>Lugar de Nacimiento *</label><input type="text" name="lugarNacimiento" value={form.lugarNacimiento||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Lugar de Nacimiento *</label><input type="text" name="lugarNacimiento" value={form.lugarNacimiento||''} onChange={onChange} autoComplete="off" /></div>
             <div className="form-group"><label>Género *</label><select name="genero" value={form.genero||''} onChange={onChange}>{GENEROS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>Estado Civil *</label><select name="estadoCivil" value={form.estadoCivil||''} onChange={onChange}>{ESTADOS_CIVILES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>RH *</label><select name="rh" value={form.rh||''} onChange={onChange}>{RH_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
@@ -677,18 +680,18 @@ function RegistroPanel({ empleados, setEmpleados }) {
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
           <div className="form-grid">
-            <div className="form-group"><label>Dirección de Vivienda *</label><input type="text" name="direccion" value={form.direccion||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Barrio *</label><input type="text" name="barrio" value={form.barrio||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Ciudad *</label><input type="text" name="ciudad" value={form.ciudad||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Teléfono *</label><input type="text" name="telefono" value={form.telefono||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Correo Electrónico *</label><input type="email" name="correo" value={form.correo||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Dirección de Vivienda *</label><input type="text" name="direccion" value={form.direccion||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Barrio *</label><input type="text" name="barrio" value={form.barrio||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Ciudad *</label><input type="text" name="ciudad" value={form.ciudad||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Teléfono *</label><input type="text" name="telefono" value={form.telefono||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Correo Electrónico *</label><input type="email" name="correo" value={form.correo||''} onChange={onChange} autoComplete="off" /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
           <div className="form-grid">
-            <div className="form-group"><label>Nombre del Contacto *</label><input type="text" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Número de Contacto *</label><input type="text" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Parentesco *</label><input type="text" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Nombre del Contacto *</label><input type="text" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Número de Contacto *</label><input type="text" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Parentesco *</label><input type="text" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco||''} onChange={onChange} autoComplete="off" /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
@@ -698,7 +701,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
             <div className="form-group"><label>Sede *</label><select name="sede" value={form.sede||''} onChange={onChange}>{SEDES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>Tipo Vinculación *</label><select name="tipoVinculacion" value={form.tipoVinculacion||''} onChange={onChange}>{TIPOS_VINCULACION.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>Tipo de Contrato *</label><select name="tipoContrato" value={form.tipoContrato||''} onChange={onChange}>{TIPOS_CONTRATO.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-            <div className="form-group"><label>Salario *</label><input type="number" name="salario" value={form.salario||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Salario *</label><input type="number" name="salario" value={form.salario||''} onChange={onChange} autoComplete="off" /></div>
             <div className="form-group"><label>Fecha de Ingreso *</label><input type="date" name="fechaIngreso" value={form.fechaIngreso||''} onChange={onChange} /></div>
             <div className="form-group"><label>Fecha Terminación Contrato</label><input type="date" name="fechaTerminacion" value={form.fechaTerminacion||''} onChange={onChange} /></div>
             <div className="form-group"><label>Fecha de Retiro</label><input type="date" name="fechaRetiro" value={form.fechaRetiro||''} onChange={onChange} /></div>
@@ -716,7 +719,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
           <div className="form-grid">
             <div className="form-group"><label>Cuenta Bancaria *</label><select name="banco" value={form.banco||''} onChange={onChange}>{BANCOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-            <div className="form-group"><label>Número de Cuenta *</label><input type="text" name="numeroCuenta" value={form.numeroCuenta||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Número de Cuenta *</label><input type="text" name="numeroCuenta" value={form.numeroCuenta||''} onChange={onChange} autoComplete="off" /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
@@ -779,10 +782,30 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
   // Compras state
   const [compraForm, setCompraForm] = useState({ proveedor: '', cedulaNit: '', fecha: todayISO() });
   const [compraItems, setCompraItems] = useState([{ articulo: DOTACION_ITEMS[0], cantidad: 1, precioUnitario: 0 }]);
-  const [compras, setCompras] = useState(() => {
-    try { const stored = localStorage.getItem('cronch-compras'); return stored ? JSON.parse(stored) : []; } catch { return []; }
-  });
-  const saveCompras = (data) => { setCompras(data); localStorage.setItem('cronch-compras', JSON.stringify(data)); };
+  const [compras, setCompras] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        if (window.storage) {
+          const result = await window.storage.get('cronch-compras');
+          if (result && result.value) setCompras(JSON.parse(result.value));
+        } else {
+          const stored = localStorage.getItem('cronch-compras');
+          if (stored) setCompras(JSON.parse(stored));
+        }
+      } catch {}
+    })();
+  }, []);
+  const saveCompras = async (data) => {
+    setCompras(data);
+    try {
+      if (window.storage) {
+        await window.storage.set('cronch-compras', JSON.stringify(data));
+      } else {
+        localStorage.setItem('cronch-compras', JSON.stringify(data));
+      }
+    } catch(e) { console.error(e); }
+  };
 
   // Validar stock antes de entregar
   const validarStock = () => {
@@ -1005,7 +1028,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
             {entregas.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(entregas,[
               {label:'Fecha',key:'fecha'},{label:'Empleado',key:'empleadoNombre'},{label:'Documento',key:'empleadoDoc'},
               {label:'Artículos',key:e=>e.items?.map(i=>i.articulo+'('+i.cantidad+')').join(', ')},{label:'Responsable',key:'responsable'}
-            ],'CRONCH_Entregas')} />}
+            ],'CRONCH_Entregas')} />}}
           </div>
           {entregas.length === 0 ? (
             <div className="empty-state"><div className="icon">📋</div><p>No hay entregas registradas</p></div>
@@ -1087,13 +1110,15 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
               {entregaForm.firma ? (
                 <div><img src={entregaForm.firma} alt="firma" style={{height:60,border:'1px solid #e5e7eb',borderRadius:6}} /><button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={()=>setEntregaForm({...entregaForm,firma:null})}>Cambiar</button></div>
               ) : showSigPad ? (
-                <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)} />              ) : (
+                <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)})}
+              ) : (
                 <button className="btn btn-secondary btn-sm" onClick={()=>setShowSigPad(true)}>✍️ Firmar</button>
               )}
             </div>
             <div>
               <p style={{fontWeight:600,fontSize:13,marginBottom:8,color:'#374151'}}>FOTO</p>
-              <PhotoCapture onCapture={(d)=>setEntregaForm({...entregaForm,foto:d})} />            </div>
+              <PhotoCapture onCapture={(d)=>setEntregaForm({...entregaForm,foto:d})})}
+            </div>
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
@@ -1166,7 +1191,7 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         <div className="card-title">Solicitudes Realizadas ({solicitudes.length})
           {solicitudes.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(solicitudes,[
             {label:'Fecha',key:s=>new Date(s.fecha).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'}
-          ],'CRONCH_Solicitudes')} />}
+          ],'CRONCH_Solicitudes')} />}}
         </div>
         {solicitudes.length === 0 ? (
           <div className="empty-state"><div className="icon">📋</div><p>No hay solicitudes registradas</p></div>
@@ -1308,7 +1333,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         <div className="card-title">Certificados Generados ({certificados.length})
           {certificados.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(certificados,[
             {label:'Fecha',key:c=>new Date(c.fechaGeneracion).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'},{label:'Contrato',key:'tipoContrato'},{label:'Salario',key:'salario'}
-          ],'CRONCH_Certificados')} />}
+          ],'CRONCH_Certificados')} />}}
         </div>
         {certificados.length === 0 ? (
           <div className="empty-state"><div className="icon">📄</div><p>No se han generado certificados</p></div>
@@ -1454,7 +1479,8 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
               return (
                 <div key={mes} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
                   <span style={{fontSize:11,fontWeight:700,color:cant>0?'#2a5cc7':'#d1d5db'}}>{cant > 0 ? cant : ''}</span>
-                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}} />                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
+                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}})}
+                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
                 </div>
               );
             })}
@@ -1467,7 +1493,8 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
         <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Nueva Novedad'}</button>
         <ExportButton label="Exportar Novedades" onClick={()=>exportToCSV(novedades,[
           {label:'Tipo',key:'tipo'},{label:'Empleado',key:'empleado'},{label:'Mes',key:'mes'},{label:'Fecha Inicio',key:'fechaInicio'},{label:'Fecha Fin',key:'fechaFin'},{label:'Días',key:'dias'},{label:'Observación',key:'observacion'},{label:'Reportado Por',key:'reportadoPor'},{label:'Adjunto',key:n=>n.adjunto?.name||''}
-        ],'CRONCH_Novedades')} />        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+        ],'CRONCH_Novedades')})}
+        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
           <button style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:'1.5px solid #e5e7eb',background:filtroTipo==='todos'?'#dbe8fe':'#fff',color:filtroTipo==='todos'?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo('todos')}>Todos ({totalNovedades})</button>
           {TIPOS_NOVEDAD.filter(t=>novedadesPorTipo[t]>0).map(t=>(
             <button key={t} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroTipo===t?coloresTipo[t]:'#e5e7eb'}`,background:filtroTipo===t?coloresTipo[t]+'20':'#fff',color:filtroTipo===t?coloresTipo[t]:'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo(t)}>{t} ({novedadesPorTipo[t]})</button>
@@ -1771,7 +1798,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
     const color = pendientes > 30 ? '#dc2626' : pendientes > 15 ? '#f59e0b' : pendientes > 0 ? '#3b82f6' : '#22c55e';
     return (
       <div style={{width:'100%',height:8,background:'#e5e7eb',borderRadius:4,overflow:'hidden'}}>
-        <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}} />
+        <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}})}
       </div>
     );
   };
