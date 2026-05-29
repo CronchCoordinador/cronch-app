@@ -77,35 +77,67 @@ const sendToSheet = async (action, data) => {
 };
 
 // ==================== STORAGE HELPERS ====================
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbxRnCigtbWF2hbPXLfIP5l91l8o8sQJgT-UQrtzl6TrJnBo6r1_uUtVHSOvX_hmlFZE/exec";
+
 const KEYS = {
-  empleados: 'cronch-empleados',
-  inventario: 'cronch-inventario',
-  entregas: 'cronch-entregas',
-  solicitudes: 'cronch-solicitudes',
-  certificados: 'cronch-certificados',
-  novedades: 'cronch-novedades',
-  vacaciones: 'cronch-vacaciones',
+  empleados: 'empleados',
+  inventario: 'inventario',
+  entregas: 'entregas',
+  solicitudes: 'solicitudes',
+  certificados: 'certificados',
+  novedades: 'novedades',
+  vacaciones: 'vacaciones',
   user: 'cronch-user',
+  solicDotacion: 'solicDotacion',
+  desprendibles: 'desprendibles',
+  usuarios: 'usuarios',
 };
 
+// Cache local para velocidad
+const localCache = {};
+
 const loadData = async (key, fallback) => {
+  if (key === 'cronch-user') {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  }
+  if (localCache[key] !== undefined) return localCache[key];
   try {
-    if (window.storage) {
-      const result = await window.storage.get(key);
-      return result && result.value ? JSON.parse(result.value) : fallback;
-    }
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : fallback;
-  } catch { return fallback; }
+    const stored = localStorage.getItem('cronch-' + key);
+    if (stored) { localCache[key] = JSON.parse(stored); return localCache[key]; }
+  } catch {}
+  return fallback;
 };
+
 const saveData = async (key, data) => {
+  if (key === 'cronch-user') {
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch {} return;
+  }
+  localCache[key] = data;
+  try { localStorage.setItem('cronch-' + key, JSON.stringify(data)); } catch {}
+  // Sync to Google Sheets via hidden iframe form (avoids CORS)
   try {
-    if (window.storage) {
-      await window.storage.set(key, JSON.stringify(data));
-    } else {
-      localStorage.setItem(key, JSON.stringify(data));
+    const payload = JSON.stringify({ action: 'saveAll', payload: { [key]: data } });
+    const encoded = encodeURIComponent(payload);
+    const img = new Image();
+    img.src = SHEET_URL + '?data=' + encoded;
+  } catch {}
+};
+
+const loadAllFromSheet = async () => {
+  try {
+    const res = await fetch(SHEET_URL + '?action=loadAll');
+    const json = await res.json();
+    if (json.ok && json.data) {
+      Object.keys(json.data).forEach(k => {
+        if (json.data[k] !== null) {
+          localCache[k] = json.data[k];
+          try { localStorage.setItem('cronch-' + k, JSON.stringify(json.data[k])); } catch {}
+        }
+      });
+      return json.data;
     }
-  } catch(e) { console.error(e); }
+  } catch(e) {}
+  return null;
 };
 
 // ==================== EXPORT HELPERS ====================
@@ -287,7 +319,7 @@ function SignaturePad({ onSave, onCancel }) {
       <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: 8 }}>Dibuje su firma:</p>
       <canvas ref={canvasRef} width={400} height={150} className="sig-canvas"
         onMouseDown={start} onMouseMove={draw} onMouseUp={stop} onMouseLeave={stop}
-        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop}></canvas>
+        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop} />
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button className="btn btn-secondary btn-sm" onClick={clear}>Limpiar</button>
         <button className="btn btn-primary btn-sm" onClick={() => onSave(canvasRef.current.toDataURL())}>Guardar Firma</button>
@@ -331,11 +363,17 @@ export default function App() {
   const [certificados, setCertificados] = useState([]);
   const [novedades, setNovedades] = useState([]);
   const [vacaciones, setVacaciones] = useState([]);
+  const [solicDotacion, setSolicDotacion] = useState([]);
+  const [desprendibles, setDesprendibles] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
 
   useEffect(() => {
     (async () => {
+      // 1. Load user from localStorage immediately
       const u = await loadData(KEYS.user, null);
       if (u) setUser(u);
+
+      // 2. Load from local cache first (fast)
       const emp = await loadData(KEYS.empleados, []);
       setEmpleados(emp);
       const inv = await loadData(KEYS.inventario, {});
@@ -347,17 +385,52 @@ export default function App() {
       setCertificados(await loadData(KEYS.certificados, []));
       setNovedades(await loadData(KEYS.novedades, []));
       setVacaciones(await loadData(KEYS.vacaciones, []));
+      setSolicDotacion(await loadData(KEYS.solicDotacion, []));
+      setDesprendibles(await loadData(KEYS.desprendibles, []));
+      setUsuarios(await loadData(KEYS.usuarios, []));
       setLoading(false);
+
+      // 3. Sync from Google Sheets in background (updates if newer data exists)
+      const sheetData = await loadAllFromSheet();
+      if (sheetData) {
+        if (sheetData.empleados?.length) setEmpleados(sheetData.empleados);
+        if (sheetData.inventario && Object.keys(sheetData.inventario).length) setInventario(sheetData.inventario);
+        if (sheetData.entregas?.length) setEntregas(sheetData.entregas);
+        if (sheetData.solicitudes?.length) setSolicitudes(sheetData.solicitudes);
+        if (sheetData.certificados?.length) setCertificados(sheetData.certificados);
+        if (sheetData.novedades?.length) setNovedades(sheetData.novedades);
+        if (sheetData.vacaciones?.length) setVacaciones(sheetData.vacaciones);
+        if (sheetData.solicDotacion?.length) setSolicDotacion(sheetData.solicDotacion);
+        if (sheetData.desprendibles?.length) setDesprendibles(sheetData.desprendibles);
+        if (sheetData.usuarios?.length) setUsuarios(sheetData.usuarios);
+      }
     })();
   }, []);
 
   const save = useCallback(async (key, data) => { await saveData(key, data); }, []);
+  const handleSetEmpleados = useCallback((e) => { setEmpleados(e); saveData(KEYS.empleados, e); }, []);
+  const handleSetInventario = useCallback((i) => { setInventario(i); saveData(KEYS.inventario, i); }, []);
+  const handleSetEntregas = useCallback((e) => { setEntregas(e); saveData(KEYS.entregas, e); }, []);
+  const handleSetSolicitudes = useCallback((s) => { setSolicitudes(s); saveData(KEYS.solicitudes, s); }, []);
+  const handleSetCertificados = useCallback((c) => { setCertificados(c); saveData(KEYS.certificados, c); }, []);
+  const handleSetNovedades = useCallback((n) => { setNovedades(n); saveData(KEYS.novedades, n); }, []);
+  const handleSetVacaciones = useCallback((v) => { setVacaciones(v); saveData(KEYS.vacaciones, v); }, []);
+  const handleSetSolicDotacion = useCallback((s) => { setSolicDotacion(s); saveData(KEYS.solicDotacion, s); }, []);
+  const handleSetDesprendibles = useCallback((d) => { setDesprendibles(d); saveData(KEYS.desprendibles, d); }, []);
+  const handleSetUsuarios = useCallback((u) => { setUsuarios(u); saveData(KEYS.usuarios, u); }, []);
 
   if (loading) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'DM Sans',color:'#3b76f0' }}><div style={{textAlign:'center'}}><div style={{fontSize:48,marginBottom:12}}>🍽️</div><p>Cargando CRONCH...</p></div></div>;
 
-  if (!user) return <LoginPage onLogin={(u) => { setUser(u); save(KEYS.user, u); }})};
-
-  const navItems = [
+  if (!user) return <LoginPage usuarios={usuarios} setUsuarios={handleSetUsuarios} onLogin={(u) => { setUser(u); save(KEYS.user, u); }} />;
+  const ROL_MENUS = {
+    Administrador: ['dashboard','registro','dotacion','solicitudes','certificados','novedades','vacaciones','solicdotacion','desprendibles','alertas','usuarios'],
+    RRHH: ['dashboard','registro','dotacion','solicitudes','certificados','novedades','vacaciones','solicdotacion','desprendibles','alertas','usuarios'],
+    Director: ['dashboard','registro','dotacion','solicitudes','vacaciones','novedades','alertas','solicdotacion','desprendibles'],
+    Lider: ['dashboard','registro','dotacion','solicitudes','vacaciones','novedades','alertas','solicdotacion','desprendibles'],
+    'Personal Fijo': ['dashboard','registro','dotacion','solicitudes','vacaciones','solicdotacion','desprendibles'],
+    'Personal Apoyo': ['dashboard','registro','solicdotacion'],
+  };
+  const ALL_NAV = [
     { id: 'dashboard', icon: '📊', label: 'Informes' },
     { id: 'registro', icon: '👤', label: 'Registro Personal' },
     { id: 'dotacion', icon: '👕', label: 'Inventario Dotación' },
@@ -365,8 +438,13 @@ export default function App() {
     { id: 'certificados', icon: '📄', label: 'Certificados Laborales' },
     { id: 'novedades', icon: '📝', label: 'Novedades Personal' },
     { id: 'vacaciones', icon: '🏖️', label: 'Vacaciones' },
+    { id: 'solicdotacion', icon: '👗', label: 'Solicitud Dotación' },
+    { id: 'desprendibles', icon: '💰', label: 'Desprendibles de Pago' },
     { id: 'alertas', icon: '🔔', label: 'Alertas' },
+    { id: 'usuarios', icon: '🔑', label: 'Gestión de Usuarios' },
   ];
+  const permisosRol = ROL_MENUS[user.rol] || ROL_MENUS['Coordinador'];
+  const navItems = ALL_NAV.filter(n => permisosRol.includes(n.id));
 
   return (
     <>
@@ -391,7 +469,7 @@ export default function App() {
               <div className="user-avatar">{user.nombre?.[0] || 'U'}</div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{user.nombre}</div>
-                <div style={{ fontSize: 11, opacity: 0.6 }}>{user.email}</div>
+                <div style={{ fontSize: 11, opacity: 0.6 }}>{user.rol || 'Sin rol'}</div>
               </div>
             </div>
             <button className="btn btn-secondary btn-sm" style={{ width:'100%', marginTop:10, fontSize:12 }}
@@ -401,14 +479,17 @@ export default function App() {
 
         <main className="main">
           <div className="fade-in">
-            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario}} />}}
-            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={(e)=>{setEmpleados(e);save(KEYS.empleados,e);}} />}
-            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={(i)=>{setInventario(i);save(KEYS.inventario,i);}} entregas={entregas} setEntregas={(e)=>{setEntregas(e);save(KEYS.entregas,e);}} empleados={empleados} user={user}} />}
-            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={(s)=>{setSolicitudes(s);save(KEYS.solicitudes,s);}} />}
-            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={(c)=>{setCertificados(c);save(KEYS.certificados,c);}} />}
-            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={(n)=>{setNovedades(n);save(KEYS.novedades,n);}} empleados={empleados} user={user}} />}
-            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={(v)=>{setVacaciones(v);save(KEYS.vacaciones,v);}} novedades={novedades}} />}
-            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas}} />}}
+            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario} />}
+            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={handleSetEmpleados} user={user} />}
+            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={handleSetInventario} entregas={entregas} setEntregas={handleSetEntregas} empleados={empleados} user={user} />}
+            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={handleSetSolicitudes} />}
+            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={handleSetCertificados} />}
+            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={handleSetNovedades} empleados={empleados} user={user} />}
+            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={handleSetVacaciones} novedades={novedades} user={user} />}
+            {panel === 'solicdotacion' && <SolicitudDotacionPanel solicDotacion={solicDotacion} setSolicDotacion={handleSetSolicDotacion} empleados={empleados} inventario={inventario} user={user} />}
+            {panel === 'desprendibles' && <DesprendiblesPanel desprendibles={desprendibles} setDesprendibles={handleSetDesprendibles} empleados={empleados} user={user} />}
+            {panel === 'usuarios' && <GestionUsuariosPanel usuarios={usuarios} setUsuarios={handleSetUsuarios} user={user} />}
+            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas} />}
           </div>
         </main>
       </div>
@@ -416,18 +497,361 @@ export default function App() {
   );
 }
 
+// ==================== DESPRENDIBLES DE PAGO ====================
+function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }) {
+  const soloPropio = ['Director','Lider','Personal Fijo','Personal Apoyo'].includes(user?.rol);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filtroMes, setFiltroMes] = useState('todos');
+  const [visorPDF, setVisorPDF] = useState(null);
+  const [form, setForm] = useState({ empleadoDoc: '', empleadoNombre: '', mes: MESES[0], anio: new Date().getFullYear().toString(), pdf: null, pdfNombre: '' });
+  const pdfRef = useRef(null);
+
+  const ANIOS = [String(new Date().getFullYear()), String(new Date().getFullYear()-1), String(new Date().getFullYear()-2)];
+
+  const onChangeForm = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'empleadoDoc') {
+        const emp = empleados.find(em => em.documento === value);
+        updated.empleadoNombre = emp ? emp.nombres + ' ' + emp.apellidos : '';
+      }
+      return updated;
+    });
+  }, [empleados]);
+
+  const handlePDF = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.type !== 'application/pdf') { alert('Solo se permiten archivos PDF'); return; }
+    if (f.size > 5 * 1024 * 1024) { alert('El archivo no puede superar 5MB'); return; }
+    const r = new FileReader();
+    r.onload = (ev) => setForm(prev => ({ ...prev, pdf: ev.target.result, pdfNombre: f.name }));
+    r.readAsDataURL(f);
+  };
+
+  const handleSubmit = () => {
+    if (!form.empleadoDoc || !form.empleadoNombre) { alert('Seleccione un empleado'); return; }
+    if (!form.pdf) { alert('Debe cargar el PDF del desprendible'); return; }
+    const existe = desprendibles.find(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio);
+    if (existe) { if (!confirm(`Ya existe un desprendible para ${form.empleadoNombre} en ${form.mes} ${form.anio}. ¿Desea reemplazarlo?`)) return; }
+    const nuevo = { ...form, id: Date.now(), fechaSubida: new Date().toISOString(), subidoPor: user?.nombre || 'RRHH' };
+    const actualizados = existe
+      ? desprendibles.map(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio ? nuevo : d)
+      : [...desprendibles, nuevo];
+    setDesprendibles(actualizados);
+    setForm({ empleadoDoc: '', empleadoNombre: '', mes: MESES[0], anio: new Date().getFullYear().toString(), pdf: null, pdfNombre: '' });
+    setShowForm(false);
+    alert('✅ Desprendible cargado correctamente');
+  };
+
+  const handleDelete = (id) => {
+    if (confirm('¿Eliminar este desprendible?')) setDesprendibles(desprendibles.filter(d => d.id !== id));
+  };
+
+  const mesesDisponibles = [...new Set(desprendibles.map(d => d.mes))];
+
+  const filtered = desprendibles.filter(d => {
+    if (soloPropio) {
+      const mismaDoc = d.empleadoDoc === String(user?.cedula);
+      const mismoNombre = d.empleadoNombre?.toLowerCase() === user?.nombre?.toLowerCase();
+      if (!mismaDoc && !mismoNombre) return false;
+    }
+    const matchSearch = !search || d.empleadoNombre.toLowerCase().includes(search.toLowerCase()) || d.empleadoDoc.includes(search);
+    const matchMes = filtroMes === 'todos' || d.mes === filtroMes;
+    return matchSearch && matchMes;
+  });
+
+  return (
+    <div>
+      <div className="page-header"><h1>Desprendibles de Pago</h1><p>Gestión y consulta de desprendibles mensuales del personal</p></div>
+
+      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap',alignItems:'center'}}>
+        {!soloPropio && <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Cargar Desprendible'}</button>}
+        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+          <button style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroMes==='todos'?'#2a5cc7':'#e5e7eb'}`,background:filtroMes==='todos'?'#dbe8fe':'#fff',color:filtroMes==='todos'?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroMes('todos')}>Todos ({desprendibles.length})</button>
+          {mesesDisponibles.map(m=>(
+            <button key={m} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroMes===m?'#2a5cc7':'#e5e7eb'}`,background:filtroMes===m?'#dbe8fe':'#fff',color:filtroMes===m?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroMes(m)}>{m}</button>
+          ))}
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="card fade-in">
+          <div className="card-title">💰 Cargar Desprendible de Pago</div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Empleado *</label>
+              <select name="empleadoDoc" value={form.empleadoDoc} onChange={onChangeForm}>
+                <option value="">— Seleccionar empleado —</option>
+                {empleados.filter(e=>!e.fechaRetiro).sort((a,b)=>`${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`)).map(e=>(
+                  <option key={e.documento} value={e.documento}>{e.nombres} {e.apellidos} — {e.documento}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group"><label>Mes *</label>
+              <select name="mes" value={form.mes} onChange={onChangeForm}>
+                {MESES.map(m=><option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="form-group"><label>Año *</label>
+              <select name="anio" value={form.anio} onChange={onChangeForm}>
+                {ANIOS.map(a=><option key={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-group" style={{marginTop:12}}>
+            <label>Archivo PDF * <span style={{fontSize:11,color:'#6b7280'}}>(máx. 5MB)</span></label>
+            <input ref={pdfRef} type="file" accept="application/pdf" style={{display:'none'}} onChange={handlePDF} />
+            <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+              <button type="button" className="btn btn-secondary" onClick={()=>pdfRef.current.click()}>📎 {form.pdfNombre || 'Seleccionar PDF'}</button>
+              {form.pdf && <span style={{fontSize:12,color:'#16a34a',fontWeight:600}}>✅ PDF cargado</span>}
+            </div>
+          </div>
+          <div style={{marginTop:20,display:'flex',gap:10}}>
+            <button className="btn btn-primary" onClick={handleSubmit}>✅ Guardar Desprendible</button>
+            <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {visorPDF && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.7)',zIndex:2000,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'#fff',borderRadius:12,width:'100%',maxWidth:900,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 20px',borderBottom:'1px solid #e5e7eb'}}>
+              <div>
+                <strong style={{fontSize:15}}>{visorPDF.empleadoNombre}</strong>
+                <span style={{fontSize:13,color:'#6b7280',marginLeft:12}}>{visorPDF.mes} {visorPDF.anio}</span>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <a href={visorPDF.pdf} download={visorPDF.pdfNombre || `desprendible_${visorPDF.mes}_${visorPDF.anio}.pdf`} className="btn btn-primary btn-sm">⬇️ Descargar</a>
+                <button className="btn btn-secondary btn-sm" onClick={()=>setVisorPDF(null)}>✕ Cerrar</button>
+              </div>
+            </div>
+            <iframe src={visorPDF.pdf} style={{flex:1,border:'none',minHeight:500}} title="Desprendible PDF" />
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="search-bar"><span className="search-icon">🔍</span><input placeholder="Buscar por nombre o documento..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
+        {filtered.length === 0 ? (
+          <div className="empty-state"><div className="icon">💰</div><p>No hay desprendibles cargados aún</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Empleado</th><th>Documento</th><th>Período</th><th>Fecha Subida</th><th>Subido Por</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {filtered.sort((a,b)=>new Date(b.fechaSubida)-new Date(a.fechaSubida)).map(d=>(
+                  <tr key={d.id}>
+                    <td style={{fontWeight:500}}>{d.empleadoNombre}</td>
+                    <td>{d.empleadoDoc}</td>
+                    <td><span className="badge badge-blue">{d.mes} {d.anio}</span></td>
+                    <td style={{fontSize:12}}>{new Date(d.fechaSubida).toLocaleDateString('es-CO')}</td>
+                    <td style={{fontSize:12,color:'#6b7280'}}>{d.subidoPor}</td>
+                    <td style={{display:'flex',gap:6}}>
+                      <button className="btn btn-primary btn-sm" onClick={()=>setVisorPDF(d)}>👁️ Ver</button>
+                      <a href={d.pdf} download={d.pdfNombre||`desprendible_${d.mes}_${d.anio}.pdf`} className="btn btn-secondary btn-sm">⬇️</a>
+                      {!soloPropio && <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(d.id)}>🗑️</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==================== SOLICITUD DOTACIÓN ====================
+function SolicitudDotacionPanel({ solicDotacion, setSolicDotacion, empleados, inventario, user }) {
+  const soloPropio = ['Director','Lider','Personal Fijo','Personal Apoyo'].includes(user?.rol);
+  const EMPTY_SOL = { empleadoNombre:'', empleadoDoc:'', cargo:'', sede:'', fecha:new Date().toISOString().split('T')[0], items:[], observacion:'', estado:'Pendiente' };
+  const [form, setForm] = useState({...EMPTY_SOL});
+  const [items, setItems] = useState([{ articulo: DOTACION_ITEMS[0], cantidad: 1 }]);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+
+  const onChangeForm = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  const handleEmpleadoSelect = (e) => {
+    const doc = e.target.value;
+    const emp = empleados.find(em => em.documento === doc);
+    if (emp) setForm(prev => ({ ...prev, empleadoDoc: doc, empleadoNombre: emp.nombres + ' ' + emp.apellidos, cargo: emp.cargo || '', sede: emp.sede || '' }));
+    else setForm(prev => ({ ...prev, empleadoDoc: doc, empleadoNombre: '', cargo: '', sede: '' }));
+  };
+
+  const handleSubmit = () => {
+    if (!form.empleadoDoc || !form.empleadoNombre || items.length === 0) {
+      alert('Complete los datos del empleado y agregue al menos un artículo'); return;
+    }
+    const nueva = { ...form, items, id: Date.now(), fechaCreacion: new Date().toISOString() };
+    setSolicDotacion([...solicDotacion, nueva]);
+    setForm({...EMPTY_SOL}); setItems([{ articulo: DOTACION_ITEMS[0], cantidad: 1 }]); setShowForm(false);
+    alert('✅ Solicitud registrada correctamente');
+  };
+
+  const handleEstado = (id, estado) => {
+    setSolicDotacion(solicDotacion.map(s => s.id === id ? { ...s, estado } : s));
+  };
+
+  const handleDelete = (id) => {
+    if (confirm('¿Eliminar esta solicitud?')) setSolicDotacion(solicDotacion.filter(s => s.id !== id));
+  };
+
+  const filtered = solicDotacion.filter(s => {
+    if (soloPropio) {
+      const mismaDoc = s.empleadoDoc === String(user?.cedula);
+      const mismoNombre = s.empleadoNombre?.toLowerCase() === user?.nombre?.toLowerCase();
+      if (!mismaDoc && !mismoNombre) return false;
+    }
+    const matchSearch = !search || s.empleadoNombre.toLowerCase().includes(search.toLowerCase()) || s.empleadoDoc.includes(search);
+    const matchEstado = filtroEstado === 'todos' || s.estado === filtroEstado;
+    return matchSearch && matchEstado;
+  });
+
+  const estadoColor = { 'Pendiente': 'badge-yellow', 'Aprobada': 'badge-green', 'Entregada': 'badge-blue', 'Rechazada': 'badge-red' };
+
+  return (
+    <div>
+      <div className="page-header"><h1>Solicitud de Dotación</h1><p>Gestión de solicitudes de dotación del personal</p></div>
+
+      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap',alignItems:'center'}}>
+        <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Nueva Solicitud'}</button>
+        <ExportButton label="Exportar" onClick={()=>exportToCSV(solicDotacion,[
+          {label:'Fecha',key:'fecha'},{label:'Empleado',key:'empleadoNombre'},{label:'Documento',key:'empleadoDoc'},
+          {label:'Cargo',key:'cargo'},{label:'Sede',key:'sede'},{label:'Estado',key:'estado'},
+          {label:'Artículos',key:s=>s.items?.map(i=>i.articulo+'('+i.cantidad+')').join(', ')},{label:'Observación',key:'observacion'}
+        ],'CRONCH_SolicDotacion')} />
+        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+          {['todos','Pendiente','Aprobada','Entregada','Rechazada'].map(e=>(
+            <button key={e} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroEstado===e?'#2a5cc7':'#e5e7eb'}`,background:filtroEstado===e?'#dbe8fe':'#fff',color:filtroEstado===e?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroEstado(e)}>{e==='todos'?'Todos':e}</button>
+          ))}
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="card fade-in">
+          <div className="card-title">📋 Nueva Solicitud de Dotación</div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Empleado *</label>
+              <select onChange={handleEmpleadoSelect} value={form.empleadoDoc}>
+                <option value="">— Seleccionar empleado —</option>
+                {empleados.filter(e=>!e.fechaRetiro).map(e=>(
+                  <option key={e.documento} value={e.documento}>{e.nombres} {e.apellidos} — {e.documento}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group"><label>Documento</label><input value={form.empleadoDoc} readOnly style={{background:'#f3f4f6'}} /></div>
+            <div className="form-group"><label>Cargo</label><input value={form.cargo} readOnly style={{background:'#f3f4f6'}} /></div>
+            <div className="form-group"><label>Sede</label><input value={form.sede} readOnly style={{background:'#f3f4f6'}} /></div>
+            <div className="form-group"><label>Fecha *</label><input type="date" name="fecha" value={form.fecha} onChange={onChangeForm} /></div>
+            <div className="form-group"><label>Estado</label>
+              <select name="estado" value={form.estado} onChange={onChangeForm}>
+                {['Pendiente','Aprobada','Entregada','Rechazada'].map(o=><option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-group"><label>Observación</label><input type="text" name="observacion" value={form.observacion} onChange={onChangeForm} placeholder="Motivo o nota adicional..." /></div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',margin:'20px 0 10px',borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 ARTÍCULOS SOLICITADOS</p>
+          {items.map((item, idx) => {
+            const stock = inventario[item.articulo]?.stock || 0;
+            return (
+              <div key={idx} style={{display:'flex',gap:10,alignItems:'center',marginBottom:8,flexWrap:'wrap'}}>
+                <select value={item.articulo} onChange={e=>{const u=[...items];u[idx].articulo=e.target.value;setItems(u);}} style={{flex:2,padding:'8px 10px',border:'1.5px solid #e5e7eb',borderRadius:6,minWidth:150}}>
+                  {DOTACION_ITEMS.map(it=><option key={it}>{it}</option>)}
+                </select>
+                <div style={{display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{fontSize:12,color:'#6b7280'}}>Cantidad:</span>
+                  <input type="number" min="1" value={item.cantidad} onChange={e=>{const u=[...items];u[idx].cantidad=Number(e.target.value);setItems(u);}} style={{width:70,padding:'8px',border:'1.5px solid #e5e7eb',borderRadius:6}} />
+                </div>
+                <span style={{fontSize:12,color: stock===0?'#dc2626':stock<=2?'#b45309':'#16a34a',fontWeight:600,minWidth:90}}>Stock: {stock}</span>
+                {items.length > 1 && <button className="btn btn-danger btn-sm" onClick={()=>setItems(items.filter((_,j)=>j!==idx))}>✕</button>}
+              </div>
+            );
+          })}
+          <button className="btn btn-secondary btn-sm" onClick={()=>setItems([...items,{articulo:DOTACION_ITEMS[0],cantidad:1}])} style={{marginTop:4}}>+ Agregar artículo</button>
+
+          <div style={{marginTop:20,display:'flex',gap:10}}>
+            <button className="btn btn-primary" onClick={handleSubmit}>✅ Guardar Solicitud</button>
+            <button className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="search-bar"><span className="search-icon">🔍</span><input placeholder="Buscar por nombre o documento..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
+        {filtered.length === 0 ? (
+          <div className="empty-state"><div className="icon">👗</div><p>No hay solicitudes registradas</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Fecha</th><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Artículos</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {filtered.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.fecha}</td>
+                    <td style={{fontWeight:500}}>{s.empleadoNombre}<br/><span style={{fontSize:11,color:'#6b7280'}}>{s.empleadoDoc}</span></td>
+                    <td>{s.cargo}</td>
+                    <td><span className="badge badge-beige">{s.sede}</span></td>
+                    <td style={{fontSize:12}}>{s.items?.map(i=>`${i.articulo}(${i.cantidad})`).join(', ')}</td>
+                    <td>
+                      <select value={s.estado} onChange={e=>handleEstado(s.id,e.target.value)} style={{padding:'4px 8px',borderRadius:6,border:'1.5px solid #e5e7eb',fontSize:12,background:'#fff'}}>
+                        {['Pendiente','Aprobada','Entregada','Rechazada'].map(o=><option key={o}>{o}</option>)}
+                      </select>
+                    </td>
+                    <td><button className="btn btn-danger btn-sm" onClick={()=>handleDelete(s.id)}>🗑️</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ==================== LOGIN ====================
-function LoginPage({ onLogin }) {
-  const [nombre, setNombre] = useState('');
-  const [email, setEmail] = useState('');
-  const [errors, setErrors] = useState({});
+function LoginPage({ onLogin, usuarios, setUsuarios }) {
+  const [modo, setModo] = useState('login'); // login | registro | pendiente
+  const [cedula, setCedula] = useState('');
+  const [pin, setPin] = useState('');
+  const [regForm, setRegForm] = useState({ nombre:'', cedula:'', pin:'', pin2:'' });
+  const [error, setError] = useState('');
 
   const handleLogin = () => {
-    const e = {};
-    if (!nombre.trim()) e.nombre = true;
-    if (!email.trim() || !email.includes('@')) e.email = true;
-    setErrors(e);
-    if (Object.keys(e).length === 0) onLogin({ nombre: nombre.trim(), email: email.trim() });
+    setError('');
+    if (!cedula.trim() || !pin.trim()) { setError('Ingrese cédula y PIN'); return; }
+    // Admin por defecto
+    if (cedula === 'admin' && pin === '1234') {
+      onLogin({ nombre: 'Administrador', cedula: 'admin', rol: 'Administrador' }); return;
+    }
+    const u = usuarios.find(u => u.cedula === cedula.trim() && u.pin === pin.trim());
+    if (!u) { setError('Cédula o PIN incorrectos'); return; }
+    if (u.estado === 'Pendiente') { setModo('pendiente'); return; }
+    if (u.estado === 'Inactivo') { setError('Tu cuenta está inactiva. Contacta al administrador.'); return; }
+    onLogin(u);
+  };
+
+  const handleRegistro = () => {
+    setError('');
+    if (!regForm.nombre.trim() || !regForm.cedula.trim() || !regForm.pin.trim()) { setError('Complete todos los campos'); return; }
+    if (regForm.pin.length !== 4 || !/^\d+$/.test(regForm.pin)) { setError('El PIN debe tener exactamente 4 dígitos'); return; }
+    if (regForm.pin !== regForm.pin2) { setError('Los PINs no coinciden'); return; }
+    if (usuarios.find(u => u.cedula === regForm.cedula.trim())) { setError('Ya existe un usuario con esa cédula'); return; }
+    const nuevo = { id: Date.now(), nombre: regForm.nombre.trim(), cedula: regForm.cedula.trim(), pin: regForm.pin, rol: 'Personal Apoyo', estado: 'Pendiente', fechaRegistro: new Date().toISOString() };
+    setUsuarios([...usuarios, nuevo]);
+    setModo('pendiente');
   };
 
   return (
@@ -438,18 +862,136 @@ function LoginPage({ onLogin }) {
           <h1>🍽️ CRONCH</h1>
           <p style={{ fontSize: 15 }}>Sistema de Gestión de Personal</p>
           <p style={{ fontSize: 12, color: '#9ca3af', marginTop: -16, marginBottom: 24 }}>Artesanalmente Oblea S.A.S</p>
-          <div className="form-group">
-            <label>Nombre completo *</label>
-            <input className={errors.nombre ? 'error' : ''} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" />
-          </div>
-          <div className="form-group">
-            <label>Correo electrónico *</label>
-            <input className={errors.email ? 'error' : ''} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
-          </div>
-          <button className="btn btn-primary" onClick={handleLogin}>Ingresar</button>
+
+          {modo === 'pendiente' && (
+            <div style={{textAlign:'center',padding:'20px 0'}}>
+              <div style={{fontSize:48,marginBottom:12}}>⏳</div>
+              <p style={{fontWeight:600,color:'#2a5cc7',marginBottom:8}}>Registro enviado</p>
+              <p style={{fontSize:13,color:'#6b7280',marginBottom:20}}>Tu cuenta está pendiente de aprobación por el administrador.</p>
+              <button className="btn btn-secondary" onClick={()=>setModo('login')}>Volver al inicio</button>
+            </div>
+          )}
+
+          {modo === 'login' && (<>
+            {error && <div style={{background:'#fee2e2',border:'1px solid #fca5a5',borderRadius:8,padding:'10px 14px',fontSize:13,color:'#dc2626',marginBottom:16}}>{error}</div>}
+            <div className="form-group">
+              <label>Cédula *</label>
+              <input value={cedula} onChange={e=>setCedula(e.target.value)} placeholder="Número de cédula" onKeyDown={e=>e.key==='Enter'&&handleLogin()} />
+            </div>
+            <div className="form-group">
+              <label>PIN (4 dígitos) *</label>
+              <input type="password" maxLength={4} value={pin} onChange={e=>setPin(e.target.value)} placeholder="••••" onKeyDown={e=>e.key==='Enter'&&handleLogin()} />
+            </div>
+            <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',marginBottom:12}} onClick={handleLogin}>Ingresar</button>
+            <button className="btn btn-secondary" style={{width:'100%',justifyContent:'center',fontSize:13}} onClick={()=>{setModo('registro');setError('');}}>¿No tienes cuenta? Regístrate</button>
+          </>)}
+
+          {modo === 'registro' && (<>
+            <p style={{fontWeight:600,fontSize:14,marginBottom:16,color:'#374151'}}>Crear cuenta nueva</p>
+            {error && <div style={{background:'#fee2e2',border:'1px solid #fca5a5',borderRadius:8,padding:'10px 14px',fontSize:13,color:'#dc2626',marginBottom:16}}>{error}</div>}
+            <div className="form-group"><label>Nombre completo *</label><input value={regForm.nombre} onChange={e=>setRegForm(p=>({...p,nombre:e.target.value}))} placeholder="Tu nombre" /></div>
+            <div className="form-group"><label>Cédula *</label><input value={regForm.cedula} onChange={e=>setRegForm(p=>({...p,cedula:e.target.value}))} placeholder="Número de cédula" /></div>
+            <div className="form-group"><label>PIN (4 dígitos) *</label><input type="password" maxLength={4} value={regForm.pin} onChange={e=>setRegForm(p=>({...p,pin:e.target.value}))} placeholder="••••" /></div>
+            <div className="form-group"><label>Confirmar PIN *</label><input type="password" maxLength={4} value={regForm.pin2} onChange={e=>setRegForm(p=>({...p,pin2:e.target.value}))} placeholder="••••" /></div>
+            <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',marginBottom:12}} onClick={handleRegistro}>Enviar solicitud</button>
+            <button className="btn btn-secondary" style={{width:'100%',justifyContent:'center',fontSize:13}} onClick={()=>{setModo('login');setError('');}}>Volver al inicio</button>
+          </>)}
         </div>
       </div>
     </>
+  );
+}
+
+// ==================== GESTIÓN DE USUARIOS ====================
+function GestionUsuariosPanel({ usuarios, setUsuarios, user }) {
+  const ROLES = ['Administrador','RRHH','Director','Lider','Personal Fijo','Personal Apoyo'];
+  const handleRol = (id, rol) => setUsuarios(usuarios.map(u => u.id === id ? {...u, rol} : u));
+  const handleEstado = (id, estado) => setUsuarios(usuarios.map(u => u.id === id ? {...u, estado} : u));
+  const handleDelete = (id) => { if(confirm('¿Eliminar este usuario?')) setUsuarios(usuarios.filter(u => u.id !== id)); };
+  const handlePin = (id) => {
+    const nuevoPin = prompt('Nuevo PIN (4 dígitos):');
+    if (!nuevoPin || nuevoPin.length !== 4 || !/^\d+$/.test(nuevoPin)) { alert('PIN inválido'); return; }
+    setUsuarios(usuarios.map(u => u.id === id ? {...u, pin: nuevoPin} : u));
+    alert('PIN actualizado');
+  };
+
+  const pendientes = usuarios.filter(u => u.estado === 'Pendiente');
+  const activos = usuarios.filter(u => u.estado !== 'Pendiente');
+
+  return (
+    <div>
+      <div className="page-header"><h1>Gestión de Usuarios</h1><p>Administra roles y accesos de la plataforma</p></div>
+
+      {pendientes.length > 0 && (
+        <div className="card fade-in" style={{borderLeft:'4px solid #f59e0b'}}>
+          <div className="card-title">⏳ Solicitudes Pendientes ({pendientes.length})</div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Nombre</th><th>Cédula</th><th>Fecha Registro</th><th>Rol a Asignar</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {pendientes.map(u=>(
+                  <tr key={u.id}>
+                    <td style={{fontWeight:500}}>{u.nombre}</td>
+                    <td>{u.cedula}</td>
+                    <td style={{fontSize:12}}>{new Date(u.fechaRegistro).toLocaleDateString('es-CO')}</td>
+                    <td>
+                      <select value={u.rol} onChange={e=>handleRol(u.id,e.target.value)} style={{padding:'4px 8px',borderRadius:6,border:'1.5px solid #e5e7eb',fontSize:12}}>
+                        {ROLES.map(r=><option key={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td style={{display:'flex',gap:6}}>
+                      <button className="btn btn-primary btn-sm" onClick={()=>handleEstado(u.id,'Activo')}>✅ Aprobar</button>
+                      <button className="btn btn-danger btn-sm" onClick={()=>handleEstado(u.id,'Inactivo')}>❌ Rechazar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-title">👥 Usuarios Registrados ({activos.length})</div>
+        {activos.length === 0 ? (
+          <div className="empty-state"><div className="icon">🔑</div><p>No hay usuarios registrados aún</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Nombre</th><th>Cédula</th><th>Rol</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {activos.map(u=>(
+                  <tr key={u.id}>
+                    <td style={{fontWeight:500}}>{u.nombre}</td>
+                    <td>{u.cedula}</td>
+                    <td>
+                      <select value={u.rol} onChange={e=>handleRol(u.id,e.target.value)} style={{padding:'4px 8px',borderRadius:6,border:'1.5px solid #e5e7eb',fontSize:12}}>
+                        {ROLES.map(r=><option key={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select value={u.estado} onChange={e=>handleEstado(u.id,e.target.value)} style={{padding:'4px 8px',borderRadius:6,border:'1.5px solid #e5e7eb',fontSize:12}}>
+                        {['Activo','Inactivo'].map(s=><option key={s}>{s}</option>)}
+                      </select>
+                    </td>
+                    <td style={{fontSize:12}}>{new Date(u.fechaRegistro).toLocaleDateString('es-CO')}</td>
+                    <td style={{display:'flex',gap:6}}>
+                      <button className="btn btn-secondary btn-sm" onClick={()=>handlePin(u.id)}>🔑 PIN</button>
+                      <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(u.id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{marginTop:16,background:'#f0f5ff',border:'1px solid #dbe8fe'}}>
+        <p style={{fontSize:13,fontWeight:600,color:'#2a5cc7',marginBottom:8}}>🔐 Acceso de administrador por defecto</p>
+        <p style={{fontSize:12,color:'#6b7280'}}>Cédula: <strong>admin</strong> — PIN: <strong>1234</strong> — Cambia el PIN desde este panel una vez ingreses.</p>
+      </div>
+    </div>
   );
 }
 
@@ -600,17 +1142,20 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 
 // ==================== REGISTRO PERSONAL ====================
 
-function RegistroPanel({ empleados, setEmpleados }) {
-  const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
-  const [form, setForm] = useState({...empty});
+const EMPTY_EMPLEADO = { foto:null,apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
+
+function RegistroPanel({ empleados, setEmpleados, user }) {
+  const [form, setForm] = useState({...EMPTY_EMPLEADO});
   const [errors, setErrors] = useState({});
   const [search, setSearch] = useState('');
   const [editIdx, setEditIdx] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const soloPropio = ['Director','Lider','Personal Fijo','Personal Apoyo'].includes(user?.rol);
+  const fotoRef = useRef(null);
 
   const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
   
-  const onChange = (e) => {
+  const onChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm(prev => {
       const updated = {...prev, [name]: value};
@@ -622,11 +1167,12 @@ function RegistroPanel({ empleados, setEmpleados }) {
       }
       return updated;
     });
-  };
+  }, []);
 
   const handleSubmit = () => {
     const e = {};
     required.forEach(f => { if (!form[f]?.toString().trim()) e[f] = true; });
+    if (!form.foto) e.foto = true;
     setErrors(e);
     if (Object.keys(e).length) { alert('Por favor complete todos los campos obligatorios marcados con *'); return; }
     if (editIdx !== null) {
@@ -634,12 +1180,22 @@ function RegistroPanel({ empleados, setEmpleados }) {
     } else {
       setEmpleados([...empleados, {...form}]); sendToSheet('addEmpleado', form);
     }
-    setForm({...empty}); setShowForm(false);
+    setForm({...EMPTY_EMPLEADO}); setShowForm(false);
   };
 
   const handleEdit = (i) => { setForm({...empleados[i]}); setEditIdx(i); setShowForm(true); };
   const handleDelete = (i) => { if (confirm('¿Eliminar este empleado?')) setEmpleados(empleados.filter((_,j) => j !== i)); };
-  const filtered = empleados.filter(e => { const s = search.toLowerCase(); return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s); });
+  const filtered = empleados.filter(e => {
+    if (soloPropio) {
+      const nombreCompleto = `${e.nombres} ${e.apellidos}`.toLowerCase();
+      const nombreUsuario = user?.nombre?.toLowerCase() || '';
+      const mismaDoc = e.documento === String(user?.cedula);
+      const mismoNombre = nombreCompleto === nombreUsuario || nombreCompleto.includes(nombreUsuario) || nombreUsuario.includes(nombreCompleto);
+      return mismaDoc || mismoNombre;
+    }
+    const s = search.toLowerCase(); return !s || `${e.nombres} ${e.apellidos} ${e.documento}`.toLowerCase().includes(s);
+  });
+  const sinRegistro = soloPropio && filtered.length === 0;
 
 
 
@@ -647,31 +1203,31 @@ function RegistroPanel({ empleados, setEmpleados }) {
     <div>
       <div className="page-header"><h1>Registro de Personal</h1><p>Gestión completa de empleados del restaurante</p></div>
       <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        <button className="btn btn-primary" onClick={()=>{setForm({...empty});setEditIdx(null);setShowForm(!showForm);}}>{showForm ? '✕ Cerrar Formulario' : '+ Nuevo Empleado'}</button>
+        {(!soloPropio || filtered.length === 0) && <button className="btn btn-primary" onClick={()=>{const base={...EMPTY_EMPLEADO};if(soloPropio){base.documento=user?.cedula||'';const parts=(user?.nombre||'').split(' ');base.nombres=parts.slice(0,2).join(' ');base.apellidos=parts.slice(2).join(' ');}setForm(base);setEditIdx(null);setShowForm(!showForm);}}>{showForm ? '✕ Cerrar Formulario' : (soloPropio ? '+ Registrar mis datos' : '+ Nuevo Empleado')}</button>}
         <ExportButton label="Exportar Empleados" onClick={()=>exportToCSV(empleados,[
           {label:'Apellidos',key:'apellidos'},{label:'Nombres',key:'nombres'},{label:'Tipo Doc',key:'tipoDoc'},{label:'Documento',key:'documento'},{label:'Ciudad Expedición',key:'ciudadExpedicion'},{label:'Fecha Expedición',key:'fechaExpedicion'},{label:'Fecha Nacimiento',key:'fechaNac'},{label:'Edad',key:'edad'},{label:'Lugar Nacimiento',key:'lugarNacimiento'},{label:'Género',key:'genero'},{label:'Estado Civil',key:'estadoCivil'},{label:'RH',key:'rh'},{label:'Nivel Educativo',key:'nivelEducativo'},{label:'Salario',key:'salario'},{label:'Tipo Contrato',key:'tipoContrato'},{label:'Vinculación',key:'tipoVinculacion'},{label:'Fecha Ingreso',key:'fechaIngreso'},{label:'Fecha Terminación',key:'fechaTerminacion'},{label:'Fecha Retiro',key:'fechaRetiro'},{label:'Dirección',key:'direccion'},{label:'Barrio',key:'barrio'},{label:'Ciudad',key:'ciudad'},{label:'Teléfono',key:'telefono'},{label:'Correo',key:'correo'},{label:'Contacto Emergencia',key:'contactoEmergenciaNombre'},{label:'Tel Emergencia',key:'contactoEmergenciaNumero'},{label:'Parentesco',key:'contactoEmergenciaParentesco'},{label:'EPS',key:'eps'},{label:'Pensión',key:'pension'},{label:'Cesantías',key:'cesantias'},{label:'ARL',key:'arl'},{label:'Caja Compensación',key:'cajaCompensacion'},{label:'Banco',key:'banco'},{label:'Nº Cuenta',key:'numeroCuenta'},{label:'Cargo',key:'cargo'},{label:'Sub Dirección',key:'subDireccion'},{label:'Sede',key:'sede'},{label:'Talla Pantalón',key:'tallaPantalon'},{label:'Talla Chaqueta',key:'tallaChaqueta'},{label:'Talla Camisa',key:'tallaCamisa'},{label:'Talla Zapatos',key:'tallaZapatos'}
         ],'CRONCH_Empleados')} />
       </div>
 
       {showForm && (
-        <div className="card" onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}>
+        <div className="card">
           <div className="card-title">{editIdx !== null ? '✏️ Editar Empleado' : '👤 Registrar Nuevo Empleado'}</div>
           
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:8,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📋 DATOS DE IDENTIFICACIÓN</p>
           <div className="form-grid">
             <div className="form-group"><label>Tipo Documento *</label><select name="tipoDoc" value={form.tipoDoc||''} onChange={onChange}>{TIPOS_DOC.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-            <div className="form-group"><label>Nº Documento *</label><input type="text" name="documento" value={form.documento||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Ciudad de Expedición *</label><input type="text" name="ciudadExpedicion" value={form.ciudadExpedicion||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Nº Documento *</label><input type="text" name="documento" value={form.documento||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Ciudad de Expedición *</label><input type="text" name="ciudadExpedicion" value={form.ciudadExpedicion||''} onChange={onChange} /></div>
             <div className="form-group"><label>Fecha de Expedición *</label><input type="date" name="fechaExpedicion" value={form.fechaExpedicion||''} onChange={onChange} /></div>
-            <div className="form-group"><label>Apellidos *</label><input type="text" name="apellidos" value={form.apellidos||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Nombres *</label><input type="text" name="nombres" value={form.nombres||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Apellidos *</label><input type="text" name="apellidos" value={form.apellidos||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Nombres *</label><input type="text" name="nombres" value={form.nombres||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🎂 DATOS PERSONALES</p>
           <div className="form-grid">
             <div className="form-group"><label>Fecha de Nacimiento *</label><input type="date" name="fechaNac" value={form.fechaNac||''} onChange={onChange} /></div>
             <div className="form-group"><label>Edad</label><input value={form.edad||''} readOnly style={{background:'#f3f4f6'}} /></div>
-            <div className="form-group"><label>Lugar de Nacimiento *</label><input type="text" name="lugarNacimiento" value={form.lugarNacimiento||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Lugar de Nacimiento *</label><input type="text" name="lugarNacimiento" value={form.lugarNacimiento||''} onChange={onChange} /></div>
             <div className="form-group"><label>Género *</label><select name="genero" value={form.genero||''} onChange={onChange}>{GENEROS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>Estado Civil *</label><select name="estadoCivil" value={form.estadoCivil||''} onChange={onChange}>{ESTADOS_CIVILES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>RH *</label><select name="rh" value={form.rh||''} onChange={onChange}>{RH_LIST.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
@@ -680,18 +1236,18 @@ function RegistroPanel({ empleados, setEmpleados }) {
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📍 DATOS DE CONTACTO</p>
           <div className="form-grid">
-            <div className="form-group"><label>Dirección de Vivienda *</label><input type="text" name="direccion" value={form.direccion||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Barrio *</label><input type="text" name="barrio" value={form.barrio||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Ciudad *</label><input type="text" name="ciudad" value={form.ciudad||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Teléfono *</label><input type="text" name="telefono" value={form.telefono||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Correo Electrónico *</label><input type="email" name="correo" value={form.correo||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Dirección de Vivienda *</label><input type="text" name="direccion" value={form.direccion||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Barrio *</label><input type="text" name="barrio" value={form.barrio||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Ciudad *</label><input type="text" name="ciudad" value={form.ciudad||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Teléfono *</label><input type="text" name="telefono" value={form.telefono||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Correo Electrónico *</label><input type="email" name="correo" value={form.correo||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🚨 CONTACTO DE EMERGENCIA</p>
           <div className="form-grid">
-            <div className="form-group"><label>Nombre del Contacto *</label><input type="text" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Número de Contacto *</label><input type="text" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero||''} onChange={onChange} autoComplete="off" /></div>
-            <div className="form-group"><label>Parentesco *</label><input type="text" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Nombre del Contacto *</label><input type="text" name="contactoEmergenciaNombre" value={form.contactoEmergenciaNombre||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Número de Contacto *</label><input type="text" name="contactoEmergenciaNumero" value={form.contactoEmergenciaNumero||''} onChange={onChange} /></div>
+            <div className="form-group"><label>Parentesco *</label><input type="text" name="contactoEmergenciaParentesco" value={form.contactoEmergenciaParentesco||''} onChange={onChange} /></div>
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>💼 DATOS LABORALES</p>
@@ -701,7 +1257,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
             <div className="form-group"><label>Sede *</label><select name="sede" value={form.sede||''} onChange={onChange}>{SEDES.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>Tipo Vinculación *</label><select name="tipoVinculacion" value={form.tipoVinculacion||''} onChange={onChange}>{TIPOS_VINCULACION.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
             <div className="form-group"><label>Tipo de Contrato *</label><select name="tipoContrato" value={form.tipoContrato||''} onChange={onChange}>{TIPOS_CONTRATO.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-            <div className="form-group"><label>Salario *</label><input type="number" name="salario" value={form.salario||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Salario *</label><input type="number" name="salario" value={form.salario||''} onChange={onChange} /></div>
             <div className="form-group"><label>Fecha de Ingreso *</label><input type="date" name="fechaIngreso" value={form.fechaIngreso||''} onChange={onChange} /></div>
             <div className="form-group"><label>Fecha Terminación Contrato</label><input type="date" name="fechaTerminacion" value={form.fechaTerminacion||''} onChange={onChange} /></div>
             <div className="form-group"><label>Fecha de Retiro</label><input type="date" name="fechaRetiro" value={form.fechaRetiro||''} onChange={onChange} /></div>
@@ -719,7 +1275,26 @@ function RegistroPanel({ empleados, setEmpleados }) {
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>🏦 DATOS BANCARIOS</p>
           <div className="form-grid">
             <div className="form-group"><label>Cuenta Bancaria *</label><select name="banco" value={form.banco||''} onChange={onChange}>{BANCOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-            <div className="form-group"><label>Número de Cuenta *</label><input type="text" name="numeroCuenta" value={form.numeroCuenta||''} onChange={onChange} autoComplete="off" /></div>
+            <div className="form-group"><label>Número de Cuenta *</label><input type="text" name="numeroCuenta" value={form.numeroCuenta||''} onChange={onChange} /></div>
+          </div>
+
+          <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>📷 FOTO DEL EMPLEADO</p>
+          <div className="form-group">
+            <label>Foto del empleado * <span style={{fontSize:11,color:'#6b7280'}}>(obligatorio)</span></label>
+            <input ref={fotoRef} type="file" accept="image/*" capture="environment" style={{display:'none'}} onChange={e=>{
+              const f=e.target.files[0]; if(!f) return;
+              const r=new FileReader(); r.onload=ev=>setForm(prev=>({...prev,foto:ev.target.result})); r.readAsDataURL(f);
+            }} />
+            <div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+              <button type="button" className={`btn btn-secondary btn-sm ${errors.foto?'error':''}`} onClick={()=>fotoRef.current.click()} style={{border:errors.foto?'1.5px solid #dc2626':''}}>📷 {form.foto ? 'Cambiar Foto' : 'Subir / Tomar Foto'}</button>
+              {errors.foto && <span style={{fontSize:12,color:'#dc2626',fontWeight:600}}>⚠️ La foto es obligatoria</span>}
+            </div>
+            {form.foto && (
+              <div style={{marginTop:10,display:'flex',gap:12,alignItems:'center'}}>
+                <img src={form.foto} alt="foto empleado" style={{width:100,height:100,objectFit:'cover',borderRadius:8,border:'2px solid #dbe8fe'}} />
+                <button type="button" className="btn btn-danger btn-sm" onClick={()=>setForm(prev=>({...prev,foto:null}))}>✕ Quitar foto</button>
+              </div>
+            )}
           </div>
 
           <p style={{fontSize:13,fontWeight:700,color:'#2a5cc7',marginBottom:8,marginTop:20,borderBottom:'2px solid #dbe8fe',paddingBottom:6}}>👕 TALLAS DE DOTACIÓN</p>
@@ -740,14 +1315,15 @@ function RegistroPanel({ empleados, setEmpleados }) {
       <div className="card">
         <div className="search-bar"><span className="search-icon">🔍</span><input placeholder="Buscar por nombre o documento..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
         {filtered.length === 0 ? (
-          <div className="empty-state"><div className="icon">👤</div><p>No hay empleados registrados aún</p></div>
+          <div className="empty-state"><div className="icon">👤</div><p>{sinRegistro ? "Tu perfil aún no está registrado en el sistema. Contacta a RRHH." : "No hay empleados registrados aún"}</p></div>
         ) : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Nombre</th><th>Documento</th><th>Cargo</th><th>Sede</th><th>Vinculación</th><th>Ingreso</th><th>Retiro</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <thead><tr><th>Foto</th><th>Nombre</th><th>Documento</th><th>Cargo</th><th>Sede</th><th>Vinculación</th><th>Ingreso</th><th>Retiro</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody>
                 {filtered.map((e,i) => (
                   <tr key={i}>
+                    <td>{e.foto ? <img src={e.foto} alt="foto" style={{width:40,height:40,objectFit:'cover',borderRadius:6,border:'1px solid #e5e7eb'}} /> : <div style={{width:40,height:40,borderRadius:6,background:'#e5e7eb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>👤</div>}</td>
                     <td style={{fontWeight:500}}>{e.nombres} {e.apellidos}</td>
                     <td>{e.tipoDoc} {e.documento}</td>
                     <td>{e.cargo}</td>
@@ -782,30 +1358,10 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
   // Compras state
   const [compraForm, setCompraForm] = useState({ proveedor: '', cedulaNit: '', fecha: todayISO() });
   const [compraItems, setCompraItems] = useState([{ articulo: DOTACION_ITEMS[0], cantidad: 1, precioUnitario: 0 }]);
-  const [compras, setCompras] = useState([]);
-  useEffect(() => {
-    (async () => {
-      try {
-        if (window.storage) {
-          const result = await window.storage.get('cronch-compras');
-          if (result && result.value) setCompras(JSON.parse(result.value));
-        } else {
-          const stored = localStorage.getItem('cronch-compras');
-          if (stored) setCompras(JSON.parse(stored));
-        }
-      } catch {}
-    })();
-  }, []);
-  const saveCompras = async (data) => {
-    setCompras(data);
-    try {
-      if (window.storage) {
-        await window.storage.set('cronch-compras', JSON.stringify(data));
-      } else {
-        localStorage.setItem('cronch-compras', JSON.stringify(data));
-      }
-    } catch(e) { console.error(e); }
-  };
+  const [compras, setCompras] = useState(() => {
+    try { const stored = localStorage.getItem('cronch-compras'); return stored ? JSON.parse(stored) : []; } catch { return []; }
+  });
+  const saveCompras = (data) => { setCompras(data); localStorage.setItem('cronch-compras', JSON.stringify(data)); };
 
   // Validar stock antes de entregar
   const validarStock = () => {
@@ -1028,7 +1584,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
             {entregas.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(entregas,[
               {label:'Fecha',key:'fecha'},{label:'Empleado',key:'empleadoNombre'},{label:'Documento',key:'empleadoDoc'},
               {label:'Artículos',key:e=>e.items?.map(i=>i.articulo+'('+i.cantidad+')').join(', ')},{label:'Responsable',key:'responsable'}
-            ],'CRONCH_Entregas')} />}}
+            ],'CRONCH_Entregas')} />}
           </div>
           {entregas.length === 0 ? (
             <div className="empty-state"><div className="icon">📋</div><p>No hay entregas registradas</p></div>
@@ -1110,15 +1666,13 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
               {entregaForm.firma ? (
                 <div><img src={entregaForm.firma} alt="firma" style={{height:60,border:'1px solid #e5e7eb',borderRadius:6}} /><button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={()=>setEntregaForm({...entregaForm,firma:null})}>Cambiar</button></div>
               ) : showSigPad ? (
-                <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)})}
-              ) : (
+                <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)} />              ) : (
                 <button className="btn btn-secondary btn-sm" onClick={()=>setShowSigPad(true)}>✍️ Firmar</button>
               )}
             </div>
             <div>
               <p style={{fontWeight:600,fontSize:13,marginBottom:8,color:'#374151'}}>FOTO</p>
-              <PhotoCapture onCapture={(d)=>setEntregaForm({...entregaForm,foto:d})})}
-            </div>
+              <PhotoCapture onCapture={(d)=>setEntregaForm({...entregaForm,foto:d})} />            </div>
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
@@ -1191,7 +1745,7 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         <div className="card-title">Solicitudes Realizadas ({solicitudes.length})
           {solicitudes.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(solicitudes,[
             {label:'Fecha',key:s=>new Date(s.fecha).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'}
-          ],'CRONCH_Solicitudes')} />}}
+          ],'CRONCH_Solicitudes')} />}
         </div>
         {solicitudes.length === 0 ? (
           <div className="empty-state"><div className="icon">📋</div><p>No hay solicitudes registradas</p></div>
@@ -1333,7 +1887,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         <div className="card-title">Certificados Generados ({certificados.length})
           {certificados.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(certificados,[
             {label:'Fecha',key:c=>new Date(c.fechaGeneracion).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'},{label:'Contrato',key:'tipoContrato'},{label:'Salario',key:'salario'}
-          ],'CRONCH_Certificados')} />}}
+          ],'CRONCH_Certificados')} />}
         </div>
         {certificados.length === 0 ? (
           <div className="empty-state"><div className="icon">📄</div><p>No se han generado certificados</p></div>
@@ -1479,8 +2033,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
               return (
                 <div key={mes} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
                   <span style={{fontSize:11,fontWeight:700,color:cant>0?'#2a5cc7':'#d1d5db'}}>{cant > 0 ? cant : ''}</span>
-                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}})}
-                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
+                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}} />                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
                 </div>
               );
             })}
@@ -1493,8 +2046,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
         <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Nueva Novedad'}</button>
         <ExportButton label="Exportar Novedades" onClick={()=>exportToCSV(novedades,[
           {label:'Tipo',key:'tipo'},{label:'Empleado',key:'empleado'},{label:'Mes',key:'mes'},{label:'Fecha Inicio',key:'fechaInicio'},{label:'Fecha Fin',key:'fechaFin'},{label:'Días',key:'dias'},{label:'Observación',key:'observacion'},{label:'Reportado Por',key:'reportadoPor'},{label:'Adjunto',key:n=>n.adjunto?.name||''}
-        ],'CRONCH_Novedades')})}
-        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+        ],'CRONCH_Novedades')} />        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
           <button style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:'1.5px solid #e5e7eb',background:filtroTipo==='todos'?'#dbe8fe':'#fff',color:filtroTipo==='todos'?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo('todos')}>Todos ({totalNovedades})</button>
           {TIPOS_NOVEDAD.filter(t=>novedadesPorTipo[t]>0).map(t=>(
             <button key={t} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroTipo===t?coloresTipo[t]:'#e5e7eb'}`,background:filtroTipo===t?coloresTipo[t]+'20':'#fff',color:filtroTipo===t?coloresTipo[t]:'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo(t)}>{t} ({novedadesPorTipo[t]})</button>
@@ -1635,6 +2187,7 @@ function AlertasPanel({ empleados, entregas }) {
               <tbody>
                 {sinDotacion.map((e,i) => (
                   <tr key={i}>
+                    <td>{e.foto ? <img src={e.foto} alt="foto" style={{width:40,height:40,objectFit:'cover',borderRadius:6,border:'1px solid #e5e7eb'}} /> : <div style={{width:40,height:40,borderRadius:6,background:'#e5e7eb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>👤</div>}</td>
                     <td style={{fontWeight:500}}>{e.nombres} {e.apellidos}</td>
                     <td>{e.tipoDoc} {e.documento}</td>
                     <td>{e.cargo}</td>
@@ -1701,7 +2254,8 @@ const VACACIONES_DATA = [
   { nombre: "VARGAS ALBINO LEIDY JOHANNA", fechaContrato: "2023-01-08", fechaVacaciones: "2024-11-02", dias: 793, diasPendientes: 33 },
 ];
 
-function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
+function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades, user }) {
+  const soloPropio = ['Director','Lider','Personal Fijo','Personal Apoyo'].includes(user?.rol);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ empleado: '', fechaInicio: '', fechaFin: '', estado: 'Programada', observacion: '' });
   const [filtro, setFiltro] = useState('todos');
@@ -1739,6 +2293,11 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
   }).sort((a, b) => b.pendientesActuales - a.pendientesActuales);
 
   const filtrados = empleadosVac.filter(e => {
+    if (soloPropio) {
+      const mismaDoc = e.cc === String(user?.cedula);
+      const mismoNombre = e.nombre?.toLowerCase().includes(user?.nombre?.toLowerCase()) || user?.nombre?.toLowerCase().includes(e.nombre?.toLowerCase());
+      if (!mismaDoc && !mismoNombre) return false;
+    }
     const matchSearch = !search || e.nombre.toLowerCase().includes(search.toLowerCase());
     const matchFiltro = filtro === 'todos' ? true
       : filtro === 'critica' ? e.urgencia === 'critica'
@@ -1798,7 +2357,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
     const color = pendientes > 30 ? '#dc2626' : pendientes > 15 ? '#f59e0b' : pendientes > 0 ? '#3b82f6' : '#22c55e';
     return (
       <div style={{width:'100%',height:8,background:'#e5e7eb',borderRadius:4,overflow:'hidden'}}>
-        <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}})}
+        <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}} />
       </div>
     );
   };
