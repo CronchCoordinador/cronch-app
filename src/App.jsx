@@ -277,7 +277,7 @@ function SignaturePad({ onSave, onCancel }) {
       <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: 8 }}>Dibuje su firma:</p>
       <canvas ref={canvasRef} width={400} height={150} className="sig-canvas"
         onMouseDown={start} onMouseMove={draw} onMouseUp={stop} onMouseLeave={stop}
-        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop}>
+        onTouchStart={start} onTouchMove={draw} onTouchEnd={stop} />
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button className="btn btn-secondary btn-sm" onClick={clear}>Limpiar</button>
         <button className="btn btn-primary btn-sm" onClick={() => onSave(canvasRef.current.toDataURL())}>Guardar Firma</button>
@@ -342,11 +342,17 @@ export default function App() {
   }, []);
 
   const save = useCallback(async (key, data) => { await saveData(key, data); }, []);
+  const handleSetEmpleados = useCallback((e) => { setEmpleados(e); saveData(KEYS.empleados, e); }, []);
+  const handleSetInventario = useCallback((i) => { setInventario(i); saveData(KEYS.inventario, i); }, []);
+  const handleSetEntregas = useCallback((e) => { setEntregas(e); saveData(KEYS.entregas, e); }, []);
+  const handleSetSolicitudes = useCallback((s) => { setSolicitudes(s); saveData(KEYS.solicitudes, s); }, []);
+  const handleSetCertificados = useCallback((c) => { setCertificados(c); saveData(KEYS.certificados, c); }, []);
+  const handleSetNovedades = useCallback((n) => { setNovedades(n); saveData(KEYS.novedades, n); }, []);
+  const handleSetVacaciones = useCallback((v) => { setVacaciones(v); saveData(KEYS.vacaciones, v); }, []);
 
   if (loading) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'DM Sans',color:'#3b76f0' }}><div style={{textAlign:'center'}}><div style={{fontSize:48,marginBottom:12}}>🍽️</div><p>Cargando CRONCH...</p></div></div>;
 
-  if (!user) return <LoginPage onLogin={(u) => { setUser(u); save(KEYS.user, u); }})};
-
+  if (!user) return <LoginPage onLogin={(u) => { setUser(u); save(KEYS.user, u); }} />;
   const navItems = [
     { id: 'dashboard', icon: '📊', label: 'Informes' },
     { id: 'registro', icon: '👤', label: 'Registro Personal' },
@@ -391,14 +397,14 @@ export default function App() {
 
         <main className="main">
           <div className="fade-in">
-            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario}} />}}
-            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={(e)=>{setEmpleados(e);save(KEYS.empleados,e);}} />}
-            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={(i)=>{setInventario(i);save(KEYS.inventario,i);}} entregas={entregas} setEntregas={(e)=>{setEntregas(e);save(KEYS.entregas,e);}} empleados={empleados} user={user}} />}
-            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={(s)=>{setSolicitudes(s);save(KEYS.solicitudes,s);}} />}
-            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={(c)=>{setCertificados(c);save(KEYS.certificados,c);}} />}
-            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={(n)=>{setNovedades(n);save(KEYS.novedades,n);}} empleados={empleados} user={user}} />}
-            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={(v)=>{setVacaciones(v);save(KEYS.vacaciones,v);}} novedades={novedades}} />}
-            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas}} />}}
+            {panel === 'dashboard' && <DashboardPanel empleados={empleados} entregas={entregas} solicitudes={solicitudes} certificados={certificados} novedades={novedades} inventario={inventario} />}
+            {panel === 'registro' && <RegistroPanel empleados={empleados} setEmpleados={handleSetEmpleados} />}
+            {panel === 'dotacion' && <DotacionPanel inventario={inventario} setInventario={handleSetInventario} entregas={entregas} setEntregas={handleSetEntregas} empleados={empleados} user={user} />}
+            {panel === 'solicitudes' && <SolicitudesPanel solicitudes={solicitudes} setSolicitudes={handleSetSolicitudes} />}
+            {panel === 'certificados' && <CertificadosPanel certificados={certificados} setCertificados={handleSetCertificados} />}
+            {panel === 'novedades' && <NovedadesPanel novedades={novedades} setNovedades={handleSetNovedades} empleados={empleados} user={user} />}
+            {panel === 'vacaciones' && <VacacionesPanel empleados={empleados} vacaciones={vacaciones} setVacaciones={handleSetVacaciones} novedades={novedades} />}
+            {panel === 'alertas' && <AlertasPanel empleados={empleados} entregas={entregas} />}
           </div>
         </main>
       </div>
@@ -590,9 +596,10 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
 
 // ==================== REGISTRO PERSONAL ====================
 
+const EMPTY_EMPLEADO = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
+
 function RegistroPanel({ empleados, setEmpleados }) {
-  const empty = { apellidos:'',nombres:'',tipoDoc:'CC',documento:'',ciudadExpedicion:'',fechaExpedicion:'',fechaNac:'',edad:'',lugarNacimiento:'',genero:GENEROS[0],salario:'',tipoContrato:TIPOS_CONTRATO[0],fechaIngreso:'',fechaTerminacion:'',fechaRetiro:'',direccion:'',barrio:'',ciudad:'',telefono:'',correo:'',contactoEmergenciaNombre:'',contactoEmergenciaNumero:'',contactoEmergenciaParentesco:'',estadoCivil:ESTADOS_CIVILES[0],eps:EPS_LIST[0],pension:PENSION_LIST[0],cesantias:CESANTIAS_LIST[0],arl:ARL_LIST[0],cajaCompensacion:CAJA_COMP_LIST[0],numeroCuenta:'',banco:BANCOS[0],rh:RH_LIST[0],nivelEducativo:NIVEL_EDUCATIVO[0],cargo:CARGOS[0],subDireccion:SUB_DIRECCIONES[0],sede:SEDES[0],tipoVinculacion:TIPOS_VINCULACION[0],tallaPantalon:TALLAS_PANTALON[0],tallaChaqueta:TALLAS_CHAQUETA[0],tallaCamisa:TALLAS_CAMISA[0],tallaZapatos:TALLAS_ZAPATOS[0] };
-  const [form, setForm] = useState({...empty});
+  const [form, setForm] = useState({...EMPTY_EMPLEADO});
   const [errors, setErrors] = useState({});
   const [search, setSearch] = useState('');
   const [editIdx, setEditIdx] = useState(null);
@@ -600,7 +607,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
 
   const required = ['apellidos','nombres','documento','ciudadExpedicion','fechaExpedicion','fechaNac','lugarNacimiento','salario','fechaIngreso','direccion','barrio','ciudad','telefono','correo','contactoEmergenciaNombre','contactoEmergenciaNumero','contactoEmergenciaParentesco','numeroCuenta'];
   
-  const onChange = (e) => {
+  const onChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm(prev => {
       const updated = {...prev, [name]: value};
@@ -612,7 +619,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
       }
       return updated;
     });
-  };
+  }, []);
 
   const handleSubmit = () => {
     const e = {};
@@ -624,7 +631,7 @@ function RegistroPanel({ empleados, setEmpleados }) {
     } else {
       setEmpleados([...empleados, {...form}]); sendToSheet('addEmpleado', form);
     }
-    setForm({...empty}); setShowForm(false);
+    setForm({...EMPTY_EMPLEADO}); setShowForm(false);
   };
 
   const handleEdit = (i) => { setForm({...empleados[i]}); setEditIdx(i); setShowForm(true); };
@@ -998,7 +1005,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
             {entregas.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(entregas,[
               {label:'Fecha',key:'fecha'},{label:'Empleado',key:'empleadoNombre'},{label:'Documento',key:'empleadoDoc'},
               {label:'Artículos',key:e=>e.items?.map(i=>i.articulo+'('+i.cantidad+')').join(', ')},{label:'Responsable',key:'responsable'}
-            ],'CRONCH_Entregas')} />}}
+            ],'CRONCH_Entregas')} />}
           </div>
           {entregas.length === 0 ? (
             <div className="empty-state"><div className="icon">📋</div><p>No hay entregas registradas</p></div>
@@ -1080,15 +1087,13 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
               {entregaForm.firma ? (
                 <div><img src={entregaForm.firma} alt="firma" style={{height:60,border:'1px solid #e5e7eb',borderRadius:6}} /><button className="btn btn-secondary btn-sm" style={{marginLeft:8}} onClick={()=>setEntregaForm({...entregaForm,firma:null})}>Cambiar</button></div>
               ) : showSigPad ? (
-                <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)})}
-              ) : (
+                <SignaturePad onSave={(d)=>{setEntregaForm({...entregaForm,firma:d});setShowSigPad(false);}} onCancel={()=>setShowSigPad(false)} />              ) : (
                 <button className="btn btn-secondary btn-sm" onClick={()=>setShowSigPad(true)}>✍️ Firmar</button>
               )}
             </div>
             <div>
               <p style={{fontWeight:600,fontSize:13,marginBottom:8,color:'#374151'}}>FOTO</p>
-              <PhotoCapture onCapture={(d)=>setEntregaForm({...entregaForm,foto:d})})}
-            </div>
+              <PhotoCapture onCapture={(d)=>setEntregaForm({...entregaForm,foto:d})} />            </div>
           </div>
 
           <div style={{marginTop:24,display:'flex',gap:10}}>
@@ -1161,7 +1166,7 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         <div className="card-title">Solicitudes Realizadas ({solicitudes.length})
           {solicitudes.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(solicitudes,[
             {label:'Fecha',key:s=>new Date(s.fecha).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'}
-          ],'CRONCH_Solicitudes')} />}}
+          ],'CRONCH_Solicitudes')} />}
         </div>
         {solicitudes.length === 0 ? (
           <div className="empty-state"><div className="icon">📋</div><p>No hay solicitudes registradas</p></div>
@@ -1303,7 +1308,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         <div className="card-title">Certificados Generados ({certificados.length})
           {certificados.length > 0 && <ExportButton label="Exportar" onClick={()=>exportToCSV(certificados,[
             {label:'Fecha',key:c=>new Date(c.fechaGeneracion).toLocaleDateString('es-CO')},{label:'Trabajador',key:'trabajador'},{label:'CC',key:'cc'},{label:'Cargo',key:'cargo'},{label:'Contrato',key:'tipoContrato'},{label:'Salario',key:'salario'}
-          ],'CRONCH_Certificados')} />}}
+          ],'CRONCH_Certificados')} />}
         </div>
         {certificados.length === 0 ? (
           <div className="empty-state"><div className="icon">📄</div><p>No se han generado certificados</p></div>
@@ -1449,8 +1454,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
               return (
                 <div key={mes} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
                   <span style={{fontSize:11,fontWeight:700,color:cant>0?'#2a5cc7':'#d1d5db'}}>{cant > 0 ? cant : ''}</span>
-                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}})}
-                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
+                  <div style={{width:'100%',height:`${Math.max(pct, 4)}%`,background:cant>0?'#3b76f0':'#e5e7eb',borderRadius:'4px 4px 0 0',transition:'height 0.5s'}} />                  <span style={{fontSize:9,color:'#6b7280',transform:'rotate(-45deg)',transformOrigin:'top',whiteSpace:'nowrap'}}>{mes.slice(0,3)}</span>
                 </div>
               );
             })}
@@ -1463,8 +1467,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
         <button className="btn btn-primary" onClick={()=>setShowForm(!showForm)}>{showForm ? '✕ Cerrar' : '+ Nueva Novedad'}</button>
         <ExportButton label="Exportar Novedades" onClick={()=>exportToCSV(novedades,[
           {label:'Tipo',key:'tipo'},{label:'Empleado',key:'empleado'},{label:'Mes',key:'mes'},{label:'Fecha Inicio',key:'fechaInicio'},{label:'Fecha Fin',key:'fechaFin'},{label:'Días',key:'dias'},{label:'Observación',key:'observacion'},{label:'Reportado Por',key:'reportadoPor'},{label:'Adjunto',key:n=>n.adjunto?.name||''}
-        ],'CRONCH_Novedades')})}
-        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
+        ],'CRONCH_Novedades')} />        <div style={{marginLeft:'auto',display:'flex',gap:4,flexWrap:'wrap'}}>
           <button style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:'1.5px solid #e5e7eb',background:filtroTipo==='todos'?'#dbe8fe':'#fff',color:filtroTipo==='todos'?'#2a5cc7':'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo('todos')}>Todos ({totalNovedades})</button>
           {TIPOS_NOVEDAD.filter(t=>novedadesPorTipo[t]>0).map(t=>(
             <button key={t} style={{padding:'5px 12px',fontSize:11,borderRadius:16,border:`1.5px solid ${filtroTipo===t?coloresTipo[t]:'#e5e7eb'}`,background:filtroTipo===t?coloresTipo[t]+'20':'#fff',color:filtroTipo===t?coloresTipo[t]:'#6b7280',cursor:'pointer',fontWeight:600}} onClick={()=>setFiltroTipo(t)}>{t} ({novedadesPorTipo[t]})</button>
@@ -1768,7 +1771,7 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades }) {
     const color = pendientes > 30 ? '#dc2626' : pendientes > 15 ? '#f59e0b' : pendientes > 0 ? '#3b82f6' : '#22c55e';
     return (
       <div style={{width:'100%',height:8,background:'#e5e7eb',borderRadius:4,overflow:'hidden'}}>
-        <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}})}
+        <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}} />
       </div>
     );
   };
