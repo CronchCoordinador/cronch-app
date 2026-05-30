@@ -1049,7 +1049,7 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
         }} style={{marginRight:8}}>📥 Exportar TODO a CSV</button>
         <button className="btn btn-primary btn-sm" style={{marginRight:8,background:'#16a34a',borderColor:'#16a34a'}} onClick={async ()=>{
           try {
-            const allData = { empleados: (empleados||[]).map(({foto,...r})=>r), inventario: inventario||{}, entregas: entregas||[], solicitudes: solicitudes||[], certificados: certificados||[], novedades: novedades||[], vacaciones: vacaciones||[], solicDotacion: solicDotacion||[], usuarios: (usuarios||[]).map(({pin,...r})=>r) };
+            const allData = { empleados: (empleados||[]).map(({foto,...r})=>r), inventario: inventario||{}, entregas: entregas||[], solicitudes: solicitudes||[], certificados: certificados||[], novedades: (novedades||[]).map(({adjunto,...r})=>r), vacaciones: vacaciones||[], solicDotacion: solicDotacion||[], usuarios: (usuarios||[]).map(({pin,...r})=>r) };
             for (const key of Object.keys(allData)) {
               const url = SHEET_URL + '?action=save&key=' + key + '&data=' + encodeURIComponent(JSON.stringify(allData[key]));
               await fetch(url);
