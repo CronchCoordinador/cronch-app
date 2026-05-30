@@ -119,7 +119,7 @@ const saveData = async (key, data) => {
     const payload = JSON.stringify({ action: 'saveAll', payload: { [key]: data } });
     const encoded = encodeURIComponent(payload);
     const img = new Image();
-    img.src = SHEET_URL + '?data=' + encoded;
+    fetch(SHEET_URL + '?data=' + encoded).catch(()=>{});
   } catch {}
 };
 
@@ -1049,11 +1049,10 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
         }} style={{marginRight:8}}>📥 Exportar TODO a CSV</button>
         <button className="btn btn-primary btn-sm" style={{marginRight:8,background:'#16a34a',borderColor:'#16a34a'}} onClick={async ()=>{
           try {
-            const allData = { empleados, inventario, entregas, solicitudes, certificados, novedades, vacaciones: vacaciones||[], solicDotacion: solicDotacion||[], desprendibles: desprendibles||[], usuarios: usuarios||[] };
-            // Send each key separately to avoid URL length limit
+            const allData = { empleados: (empleados||[]).map(({foto,...r})=>r), inventario: inventario||{}, entregas: entregas||[], solicitudes: solicitudes||[], certificados: certificados||[], novedades: novedades||[], vacaciones: vacaciones||[], solicDotacion: solicDotacion||[], usuarios: (usuarios||[]).map(({pin,...r})=>r) };
             for (const key of Object.keys(allData)) {
-              const payload = encodeURIComponent(JSON.stringify({ action: 'saveAll', payload: { [key]: allData[key] } }));
-              await fetch(SHEET_URL + '?data=' + payload).catch(()=>{});
+              const url = SHEET_URL + '?action=save&key=' + key + '&data=' + encodeURIComponent(JSON.stringify(allData[key]));
+              await fetch(url);
             }
             alert('✅ Datos sincronizados con Google Sheets');
           } catch(e) { alert('Error al sincronizar: ' + e.message); }
