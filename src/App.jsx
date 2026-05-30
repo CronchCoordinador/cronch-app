@@ -77,7 +77,7 @@ const sendToSheet = async (action, data) => {
 };
 
 // ==================== STORAGE HELPERS ====================
-const SHEET_URL = "https://script.google.com/macros/s/AKfycbxRnCigtbWF2hbPXLfIP5l91l8o8sQJgT-UQrtzl6TrJnBo6r1_uUtVHSOvX_hmlFZE/exec";
+const SHEET_URL = "/api/proxy";
 
 const KEYS = {
   empleados: 'empleados',
