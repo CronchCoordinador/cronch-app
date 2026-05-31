@@ -1842,10 +1842,14 @@ function CertificadosPanel({ certificados, setCertificados }) {
       fechaGeneracion: new Date().toISOString(),
       fechaTexto: today(),
     };
+    // Generate HTML and store in cert for Drive upload
+    const salarioTexto = cert.salario === 1750905 ? 'un salario mínimo legal vigente' : formatCurrency(cert.salario);
+    const html = descargarPDF(cert, true); // true = return html instead of download
+    cert.html = html || '';
     setPreview(cert);
   };
 
-  const descargarPDF = (cert) => {
+  const descargarPDF = (cert, returnOnly = false) => {
     const salarioTexto = cert.salario === 1750905 ? 'un salario mínimo legal vigente' : formatCurrency(cert.salario);
     const fechaTexto = cert.fechaTexto || today();
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Certificado Laboral - ${cert.trabajador}</title>
@@ -1883,10 +1887,12 @@ function CertificadosPanel({ certificados, setCertificados }) {
         <p>CEL: 3112196438</p>
       </div>
     </body></html>`;
+    if (returnOnly) return html;
     const ventana = window.open('', '_blank');
     ventana.document.write(html);
     ventana.document.close();
     setTimeout(() => { ventana.print(); }, 500);
+    return html;
   };
 
   const confirmarCert = async () => {
