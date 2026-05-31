@@ -551,7 +551,7 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
       const url = SHEET_URL + '?action=uploadPDF&nombre=' + encodeURIComponent(nombre) + '&pdf=' + encodeURIComponent(base64);
       const res = await fetch(url);
       const json = await res.json();
-      if (json.ok) pdfLink = json.link;
+      if (json.ok) pdfLink = json.link; window._lastDriveLink = json.link;
     } catch {}
 
     const nuevo = { ...form, pdfLink, pdf: null, id: Date.now(), fechaSubida: new Date().toISOString(), subidoPor: user?.nombre || 'RRHH' };
@@ -1456,7 +1456,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
         const reader = new FileReader();
         actaLink = await new Promise(resolve => {
           reader.onload = async (e) => {
-            resolve(await uploadToDrive(e.target.result.split(',')[1], nombre));
+            resolve(await window.uploadToDrive(e.target.result.split(',')[1], nombre));
           };
           reader.readAsDataURL(pdfBlob);
         });
@@ -1909,7 +1909,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         driveLink = await new Promise(resolve => {
           reader.onload = async (e) => {
             const b64 = e.target.result.split(',')[1];
-            resolve(await uploadToDrive(b64, nombre));
+            resolve(await window.uploadToDrive(b64, nombre));
           };
           reader.readAsDataURL(pdfBlob);
         });
@@ -2032,7 +2032,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
     let adjuntoLink = null;
     if (form.adjunto?.data) {
       const nombre = `Novedad_${form.empleado}_${form.tipo}_${form.fechaInicio}.pdf`;
-      adjuntoLink = await uploadToDrive(form.adjunto.data, nombre);
+      adjuntoLink = await window.uploadToDrive(form.adjunto.data, nombre);
     }
     const novedad = { ...form, dias, id: Date.now(), fecha: new Date().toISOString(), adjuntoLink, adjunto: adjuntoLink ? null : form.adjunto };
     setNovedades([...novedades, novedad]);
