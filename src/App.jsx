@@ -77,7 +77,7 @@ const sendToSheet = async (action, data) => {
 };
 
 // ==================== STORAGE HELPERS ====================
-const SHEET_URL = "https://script.google.com/macros/s/AKfycbxRnCigtbWF2hbPXLfIP5l91l8o8sQJgT-UQrtzl6TrJnBo6r1_uUtVHSOvX_hmlFZE/exec";
+const SHEET_URL = "/api/proxy";
 
 const KEYS = {
   empleados: 'empleados',
@@ -349,6 +349,17 @@ function PhotoCapture({ onCapture }) {
 }
 
 // ==================== MAIN APP ====================
+const uploadToDrive = async (base64, nombre) => {
+  try {
+    const b64 = typeof base64 === 'string' ? (base64.includes(',') ? base64.split(',')[1] : base64) : null;
+    if (!b64) return null;
+    const url = SHEET_URL + '?action=uploadPDF&nombre=' + encodeURIComponent(nombre) + '&pdf=' + encodeURIComponent(b64);
+    const res = await fetch(url);
+    const json = await res.json();
+    return json.ok ? json.link : null;
+  } catch { return null; }
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1456,7 +1467,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
         const reader = new FileReader();
         actaLink = await new Promise(resolve => {
           reader.onload = async (e) => {
-            resolve(await window.uploadToDrive(e.target.result.split(',')[1], nombre));
+            resolve(await uploadToDrive(e.target.result.split(',')[1], nombre));
           };
           reader.readAsDataURL(pdfBlob);
         });
@@ -1909,7 +1920,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         driveLink = await new Promise(resolve => {
           reader.onload = async (e) => {
             const b64 = e.target.result.split(',')[1];
-            resolve(await window.uploadToDrive(b64, nombre));
+            resolve(await uploadToDrive(b64, nombre));
           };
           reader.readAsDataURL(pdfBlob);
         });
@@ -2032,7 +2043,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
     let adjuntoLink = null;
     if (form.adjunto?.data) {
       const nombre = `Novedad_${form.empleado}_${form.tipo}_${form.fechaInicio}.pdf`;
-      adjuntoLink = await window.uploadToDrive(form.adjunto.data, nombre);
+      adjuntoLink = await uploadToDrive(form.adjunto.data, nombre);
     }
     const novedad = { ...form, dias, id: Date.now(), fecha: new Date().toISOString(), adjuntoLink, adjunto: adjuntoLink ? null : form.adjunto };
     setNovedades([...novedades, novedad]);
