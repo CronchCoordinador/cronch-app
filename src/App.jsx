@@ -389,6 +389,12 @@ export default function App() {
       setDesprendibles(await loadData(KEYS.desprendibles, []));
       setUsuarios(await loadData(KEYS.usuarios, []));
       setLoading(false);
+      // Load html2pdf
+      if (!window.html2pdf) {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        document.head.appendChild(s);
+      }
 
       // 3. Sync from Google Sheets in background (updates if newer data exists)
       const sheetData = await loadAllFromSheet();
@@ -1411,7 +1417,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
     return sinStock;
   };
 
-  const submitEntrega = () => {
+  const submitEntrega = async () => {
     if (!entregaForm.empleadoNombre || !entregaForm.empleadoDoc || !entregaForm.responsable || entregaItems.length === 0) {
       alert('Todos los campos son obligatorios'); return;
     }
@@ -1439,12 +1445,30 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
     ventanaActa.document.close();
     setTimeout(() => { ventanaActa.print(); }, 500);
 
-    setEntregas([...entregas, newEntrega]);
-    sendToSheet('addEntrega', newEntrega);
+    // Upload acta to Drive
+    let actaLink = null;
+    try {
+      const nombre = `Acta_Dotacion_${newEntrega.empleadoNombre}_${newEntrega.fecha}.pdf`;
+      if (window.html2pdf) {
+        const el = document.createElement('div');
+        el.innerHTML = actaHTML;
+        const pdfBlob = await window.html2pdf().from(el).outputPdf('blob');
+        const reader = new FileReader();
+        actaLink = await new Promise(resolve => {
+          reader.onload = async (e) => {
+            resolve(await uploadToDrive(e.target.result.split(',')[1], nombre));
+          };
+          reader.readAsDataURL(pdfBlob);
+        });
+      }
+    } catch {}
+    const entregaFinal = { ...newEntrega, actaLink };
+    setEntregas([...entregas, entregaFinal]);
+    sendToSheet('addEntrega', entregaFinal);
     setEntregaForm({ empleadoNombre: '', empleadoDoc: '', items: [], responsable: '', firma: null, foto: null, fecha: todayISO() });
     setEntregaItems([{ articulo: DOTACION_ITEMS[0], cantidad: 1 }]);
     setTab('inventario');
-    alert('✅ Acta de entrega registrada correctamente');
+    alert(actaLink ? '✅ Acta registrada y guardada en Drive' : '✅ Acta de entrega registrada correctamente');
   };
 
   const submitCompra = () => {
@@ -1865,13 +1889,32 @@ function CertificadosPanel({ certificados, setCertificados }) {
     setTimeout(() => { ventana.print(); }, 500);
   };
 
-  const confirmarCert = () => {
+  const confirmarCert = async () => {
     descargarPDF(preview);
-    setCertificados([...certificados, preview]);
-    sendToSheet('addCertificado', preview);
+    // Upload to Drive via html2pdf
+    let driveLink = null;
+    try {
+      const nombre = `Certificado_${preview.trabajador}_${preview.fechaGeneracion?.split('T')[0]}.pdf`;
+      if (window.html2pdf) {
+        const element = document.createElement('div');
+        element.innerHTML = preview.html || '';
+        const pdfBlob = await window.html2pdf().from(element).outputPdf('blob');
+        const reader = new FileReader();
+        driveLink = await new Promise(resolve => {
+          reader.onload = async (e) => {
+            const b64 = e.target.result.split(',')[1];
+            resolve(await uploadToDrive(b64, nombre));
+          };
+          reader.readAsDataURL(pdfBlob);
+        });
+      }
+    } catch {}
+    const cert = { ...preview, driveLink };
+    setCertificados([...certificados, cert]);
+    sendToSheet('addCertificado', cert);
     setPreview(null);
     setSelectedCC('');
-    alert('✅ Certificado generado y registrado');
+    alert(driveLink ? '✅ Certificado generado y guardado en Drive' : '✅ Certificado generado y registrado');
   };
 
   const formatSalary = (s) => {
