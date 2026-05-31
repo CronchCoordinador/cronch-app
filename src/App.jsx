@@ -77,7 +77,7 @@ const sendToSheet = async (action, data) => {
 };
 
 // ==================== STORAGE HELPERS ====================
-const SHEET_URL = "/api/proxy";
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbxRnCigtbWF2hbPXLfIP5l91l8o8sQJgT-UQrtzl6TrJnBo6r1_uUtVHSOvX_hmlFZE/exec";
 
 const KEYS = {
   empleados: 'empleados',
@@ -119,7 +119,7 @@ const saveData = async (key, data) => {
     const payload = JSON.stringify({ action: 'saveAll', payload: { [key]: data } });
     const encoded = encodeURIComponent(payload);
     const img = new Image();
-    fetch(SHEET_URL + '?data=' + encoded).catch(()=>{});
+    img.src = SHEET_URL + '?data=' + encoded;
   } catch {}
 };
 
@@ -531,19 +531,31 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
     r.readAsDataURL(f);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.empleadoDoc || !form.empleadoNombre) { alert('Seleccione un empleado'); return; }
     if (!form.pdf) { alert('Debe cargar el PDF del desprendible'); return; }
     const existe = desprendibles.find(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio);
     if (existe) { if (!confirm(`Ya existe un desprendible para ${form.empleadoNombre} en ${form.mes} ${form.anio}. ¿Desea reemplazarlo?`)) return; }
-    const nuevo = { ...form, id: Date.now(), fechaSubida: new Date().toISOString(), subidoPor: user?.nombre || 'RRHH' };
+    
+    // Subir PDF a Google Drive
+    let pdfLink = null;
+    try {
+      const nombre = `${form.empleadoNombre}_${form.mes}_${form.anio}.pdf`;
+      const base64 = form.pdf.split(',')[1] || form.pdf;
+      const url = SHEET_URL + '?action=uploadPDF&nombre=' + encodeURIComponent(nombre) + '&pdf=' + encodeURIComponent(base64);
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.ok) pdfLink = json.link;
+    } catch {}
+
+    const nuevo = { ...form, pdfLink, pdf: null, id: Date.now(), fechaSubida: new Date().toISOString(), subidoPor: user?.nombre || 'RRHH' };
     const actualizados = existe
       ? desprendibles.map(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio ? nuevo : d)
       : [...desprendibles, nuevo];
     setDesprendibles(actualizados);
     setForm({ empleadoDoc: '', empleadoNombre: '', mes: MESES[0], anio: new Date().getFullYear().toString(), pdf: null, pdfNombre: '' });
     setShowForm(false);
-    alert('✅ Desprendible cargado correctamente');
+    alert(pdfLink ? '✅ Desprendible subido a Google Drive correctamente' : '✅ Desprendible guardado (sin link Drive)');
   };
 
   const handleDelete = (id) => {
@@ -651,8 +663,9 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
                     <td style={{fontSize:12}}>{new Date(d.fechaSubida).toLocaleDateString('es-CO')}</td>
                     <td style={{fontSize:12,color:'#6b7280'}}>{d.subidoPor}</td>
                     <td style={{display:'flex',gap:6}}>
-                      <button className="btn btn-primary btn-sm" onClick={()=>setVisorPDF(d)}>👁️ Ver</button>
-                      <a href={d.pdf} download={d.pdfNombre||`desprendible_${d.mes}_${d.anio}.pdf`} className="btn btn-secondary btn-sm">⬇️</a>
+                      {d.pdf && <button className="btn btn-primary btn-sm" onClick={()=>setVisorPDF(d)}>👁️ Ver</button>}
+                      {d.pdfLink && <a href={d.pdfLink} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">🔗 Drive</a>}
+                      {d.pdf && <a href={d.pdf} download={d.pdfNombre||`desprendible_${d.mes}_${d.anio}.pdf`} className="btn btn-secondary btn-sm">⬇️</a>}
                       {!soloPropio && <button className="btn btn-danger btn-sm" onClick={()=>handleDelete(d.id)}>🗑️</button>}
                     </td>
                   </tr>
@@ -1049,13 +1062,28 @@ function DashboardPanel({ empleados, entregas, solicitudes, certificados, noveda
         }} style={{marginRight:8}}>📥 Exportar TODO a CSV</button>
         <button className="btn btn-primary btn-sm" style={{marginRight:8,background:'#16a34a',borderColor:'#16a34a'}} onClick={async ()=>{
           try {
-            const allData = { empleados: (empleados||[]).map(({foto,...r})=>r), inventario: inventario||{}, entregas: entregas||[], solicitudes: solicitudes||[], certificados: certificados||[], novedades: (novedades||[]).map(({adjunto,...r})=>r), vacaciones: vacaciones||[], solicDotacion: solicDotacion||[], usuarios: (usuarios||[]).map(({pin,...r})=>r) };
+            const allData = {
+              empleados: (empleados||[]).map(({foto,...r})=>r),
+              inventario: inventario||{},
+              entregas: (entregas||[]).map(({firma,...r})=>r),
+              solicitudes: solicitudes||[],
+              certificados: certificados||[],
+              novedades: (novedades||[]).map(({adjunto,...r})=>r),
+              vacaciones: vacaciones||[],
+              solicDotacion: solicDotacion||[],
+              desprendibles: (desprendibles||[]).map(({pdf,...r})=>r),
+              usuarios: (usuarios||[]).map(({pin,...r})=>r)
+            };
+            let ok = 0;
             for (const key of Object.keys(allData)) {
-              const url = SHEET_URL + '?action=save&key=' + key + '&data=' + encodeURIComponent(JSON.stringify(allData[key]));
-              await fetch(url);
+              try {
+                const url = SHEET_URL + '?action=save&key=' + key + '&data=' + encodeURIComponent(JSON.stringify(allData[key]));
+                await fetch(url, { mode: 'no-cors' });
+                ok++;
+              } catch {}
             }
-            alert('✅ Datos sincronizados con Google Sheets');
-          } catch(e) { alert('Error al sincronizar: ' + e.message); }
+            alert('✅ Datos enviados a Google Sheets (' + ok + ' módulos). Revisa en 5 segundos.');
+          } catch(e) { alert('Error: ' + e.message); }
         }}>🔄 Sincronizar con Sheet</button>
         <span style={{fontSize:12,color:'#6b7280'}}>Descarga todos los datos para abrirlos en Google Sheets</span>
       </div>
@@ -1944,7 +1972,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
     reader.readAsDataURL(f);
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!form.empleado || !form.fechaInicio || !form.fechaFin || !form.reportadoPor) {
       alert('Complete todos los campos obligatorios'); return;
     }
@@ -1952,11 +1980,17 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
       alert('La fecha fin debe ser posterior a la fecha inicio'); return;
     }
     const dias = Math.ceil((new Date(form.fechaFin) - new Date(form.fechaInicio)) / (1000*60*60*24)) + 1;
-    setNovedades([...novedades, { ...form, dias, id: Date.now(), fecha: new Date().toISOString() }]);
-    sendToSheet('addNovedad', form);
+    let adjuntoLink = null;
+    if (form.adjunto?.data) {
+      const nombre = `Novedad_${form.empleado}_${form.tipo}_${form.fechaInicio}.pdf`;
+      adjuntoLink = await uploadToDrive(form.adjunto.data, nombre);
+    }
+    const novedad = { ...form, dias, id: Date.now(), fecha: new Date().toISOString(), adjuntoLink, adjunto: adjuntoLink ? null : form.adjunto };
+    setNovedades([...novedades, novedad]);
+    sendToSheet('addNovedad', novedad);
     setForm({...empty});
     setShowForm(false);
-    alert('✅ Novedad registrada correctamente');
+    alert(adjuntoLink ? '✅ Novedad registrada y adjunto subido a Drive' : '✅ Novedad registrada correctamente');
   };
 
   const eliminarNovedad = (id) => {
