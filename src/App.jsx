@@ -66,7 +66,7 @@ const WATERMARK_BG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACfYAAAzkCAYA
 
 
 // ==================== GOOGLE SHEETS SYNC ====================
-const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbwmG91QU-_YcHYBR4vPw3x_uAQbRCbmkvAxjfny1Z7krsy6M-0-pYUkFa5Weo1Rv0VH/exec';
+const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbxRnCigtbWF2hbPXLfIP5I91I8o8sQJgT-UQrtzI6TrJnBo6r1_uUtVHSOvX_hmIFZE/exec';
 
 const sendToSheet = async (action, data) => {
   try {
@@ -77,7 +77,9 @@ const sendToSheet = async (action, data) => {
 };
 
 // ==================== STORAGE HELPERS ====================
-const SHEET_URL = "/api/proxy";
+// Conexión directa al Google Apps Script (sin pasar por /api/proxy).
+// IMPORTANTE: GSHEET_URL debe ser la URL /exec de tu despliegue ACTUAL del Apps Script.
+const SHEET_URL = GSHEET_URL;
 
 const KEYS = {
   empleados: 'empleados',
