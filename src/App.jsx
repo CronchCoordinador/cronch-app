@@ -77,9 +77,8 @@ const sendToSheet = async (action, data) => {
 };
 
 // ==================== STORAGE HELPERS ====================
-// Conexión directa al Google Apps Script (sin pasar por /api/proxy).
-// IMPORTANTE: GSHEET_URL debe ser la URL /exec de tu despliegue ACTUAL del Apps Script.
-const SHEET_URL = GSHEET_URL;
+// Lectura/escritura pasan por el intermediario /api/proxy (evita bloqueo CORS al leer la respuesta de Google).
+const SHEET_URL = "/api/proxy";
 
 const KEYS = {
   empleados: 'empleados',
@@ -2633,3 +2632,4 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades, user
     </div>
   );
 }
+
