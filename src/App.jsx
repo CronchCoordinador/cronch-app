@@ -415,7 +415,14 @@ export default function App() {
       // 3. Sync from Google Sheets in background (updates if newer data exists)
       const sheetData = await loadAllFromSheet();
       if (sheetData) {
-        if (sheetData.empleados?.length) setEmpleados(sheetData.empleados);
+        if (sheetData.empleados?.length) {
+          const conFoto = sheetData.empleados.map(se => {
+            if (se.foto) return se;
+            const local = emp.find(le => le.documento === se.documento);
+            return local && local.foto ? { ...se, foto: local.foto } : se;
+          });
+          setEmpleados(conFoto);
+        }
         if (sheetData.inventario && Object.keys(sheetData.inventario).length) setInventario(sheetData.inventario);
         if (sheetData.entregas?.length) setEntregas(sheetData.entregas);
         if (sheetData.solicitudes?.length) setSolicitudes(sheetData.solicitudes);
