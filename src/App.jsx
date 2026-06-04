@@ -358,8 +358,12 @@ const uploadToDrive = async (base64, nombre) => {
   try {
     const b64 = typeof base64 === 'string' ? (base64.includes(',') ? base64.split(',')[1] : base64) : null;
     if (!b64) return null;
-    const url = SHEET_URL + '?action=uploadPDF&nombre=' + encodeURIComponent(nombre) + '&pdf=' + encodeURIComponent(b64);
-    const res = await fetch(url);
+    // Se envía el PDF "por dentro" (en el cuerpo POST), no en el enlace, para que no falle por tamaño.
+    const res = await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'uploadPDF', nombre, pdf: b64 })
+    });
     const json = await res.json();
     return json.ok ? json.link : null;
   } catch { return null; }
@@ -554,7 +558,7 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
     const f = e.target.files[0];
     if (!f) return;
     if (f.type !== 'application/pdf') { alert('Solo se permiten archivos PDF'); return; }
-    if (f.size > 5 * 1024 * 1024) { alert('El archivo no puede superar 5MB'); return; }
+    if (f.size > 3 * 1024 * 1024) { alert('El archivo no puede superar 3MB'); return; }
     const r = new FileReader();
     r.onload = (ev) => setForm(prev => ({ ...prev, pdf: ev.target.result, pdfNombre: f.name }));
     r.readAsDataURL(f);
@@ -570,11 +574,8 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
     let pdfLink = null;
     try {
       const nombre = `${form.empleadoNombre}_${form.mes}_${form.anio}.pdf`;
-      const base64 = form.pdf.split(',')[1] || form.pdf;
-      const url = SHEET_URL + '?action=uploadPDF&nombre=' + encodeURIComponent(nombre) + '&pdf=' + encodeURIComponent(base64);
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.ok) pdfLink = json.link; window._lastDriveLink = json.link;
+      pdfLink = await uploadToDrive(form.pdf, nombre);
+      window._lastDriveLink = pdfLink;
     } catch {}
 
     const nuevo = { ...form, pdfLink, pdf: null, id: Date.now(), fechaSubida: new Date().toISOString(), subidoPor: user?.nombre || 'RRHH' };
@@ -643,7 +644,7 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
             </div>
           </div>
           <div className="form-group" style={{marginTop:12}}>
-            <label>Archivo PDF * <span style={{fontSize:11,color:'#6b7280'}}>(máx. 5MB)</span></label>
+            <label>Archivo PDF * <span style={{fontSize:11,color:'#6b7280'}}>(máx. 3MB)</span></label>
             <input ref={pdfRef} type="file" accept="application/pdf" style={{display:'none'}} onChange={handlePDF} />
             <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
               <button type="button" className="btn btn-secondary" onClick={()=>pdfRef.current.click()}>📎 {form.pdfNombre || 'Seleccionar PDF'}</button>
@@ -2038,7 +2039,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    if (f.size > 5 * 1024 * 1024) { alert('El archivo no debe superar 5MB'); return; }
+    if (f.size > 3 * 1024 * 1024) { alert('El archivo no debe superar 3MB'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => setForm(p => ({...p, adjunto: { name: f.name, type: f.type, data: ev.target.result }}));
     reader.readAsDataURL(f);
@@ -2200,7 +2201,7 @@ function NovedadesPanel({ novedades, setNovedades, empleados, user }) {
           </div>
           <div style={{marginTop:12}}>
             <input type="file" accept="image/*,.pdf" ref={fileRef} onChange={handleFile} style={{display:'none'}} />
-            <button className="btn btn-secondary btn-sm" onClick={()=>fileRef.current.click()}>📎 Adjuntar archivo (PDF/Foto, máx 5MB)</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>fileRef.current.click()}>📎 Adjuntar archivo (PDF/Foto, máx 3MB)</button>
             {form.adjunto && (
               <div style={{marginTop:8,display:'flex',alignItems:'center',gap:8}}>
                 <span style={{fontSize:13,color:'#22c55e'}}>✅ {form.adjunto.name}</span>
