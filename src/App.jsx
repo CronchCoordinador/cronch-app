@@ -70,7 +70,9 @@ const GSHEET_URL = 'https://script.google.com/macros/s/AKfycbyjHY-d6EUTyLcRetq5j
 
 const sendToSheet = async (action, data) => {
   try {
-    const payload = JSON.stringify({ action, data });
+    const payload = JSON.stringify({ action, data }, (k, v) =>
+      (typeof v === 'string' && (v.startsWith('data:') || v.length > 1500)) ? '' : v
+    );
     const img = new Image();
     img.src = GSHEET_URL + '?payload=' + encodeURIComponent(payload);
   } catch(e) { console.error('Error enviando a Google Sheets:', e); }
@@ -115,9 +117,13 @@ const saveData = async (key, data) => {
   }
   localCache[key] = data;
   try { localStorage.setItem('cronch-' + key, JSON.stringify(data)); } catch {}
-  // Guardado automático en Google Sheets, mismo formato que el botón "Sincronizar" (action=save&key=&data=)
+  // Guardado automático en Google Sheets. Se quitan fotos/PDF (base64) y textos enormes,
+  // porque no caben en el enlace ni en una celda del Sheet. Las fotos siguen en la app.
   try {
-    const url = SHEET_URL + '?action=save&key=' + encodeURIComponent(key) + '&data=' + encodeURIComponent(JSON.stringify(data));
+    const limpio = JSON.stringify(data, (k, v) =>
+      (typeof v === 'string' && (v.startsWith('data:') || v.length > 1500)) ? '' : v
+    );
+    const url = SHEET_URL + '?action=save&key=' + encodeURIComponent(key) + '&data=' + encodeURIComponent(limpio);
     fetch(url, { mode: 'no-cors' }).catch(() => {});
   } catch {}
 };
