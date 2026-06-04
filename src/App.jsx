@@ -115,12 +115,10 @@ const saveData = async (key, data) => {
   }
   localCache[key] = data;
   try { localStorage.setItem('cronch-' + key, JSON.stringify(data)); } catch {}
-  // Sync to Google Sheets via hidden iframe form (avoids CORS)
+  // Guardado automático en Google Sheets, mismo formato que el botón "Sincronizar" (action=save&key=&data=)
   try {
-    const payload = JSON.stringify({ action: 'saveAll', payload: { [key]: data } });
-    const encoded = encodeURIComponent(payload);
-    const img = new Image();
-    img.src = SHEET_URL + '?data=' + encoded;
+    const url = SHEET_URL + '?action=save&key=' + encodeURIComponent(key) + '&data=' + encodeURIComponent(JSON.stringify(data));
+    fetch(url, { mode: 'no-cors' }).catch(() => {});
   } catch {}
 };
 
@@ -2632,4 +2630,3 @@ function VacacionesPanel({ empleados, vacaciones, setVacaciones, novedades, user
     </div>
   );
 }
-
