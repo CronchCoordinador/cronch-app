@@ -1,6 +1,7 @@
 ﻿import https from "https";
 
-const SHEET = "https://script.google.com/macros/s/AKfycbxRnCigtbWF2hbPXLfIP5I91I8o8sQJgT-UQrtzI6TrJnBo6r1_uUtVHSOvX_hmIFZE/exec";
+const SHEET = "https://script.google.com/macros/s/AKfycbyjHY-d6EUTyLcRetq5j6iB8QJMpbeojiXwYZCKyIm2J7UOROx9-KtlcWhbdK8H_yMw/exec";
+
 function get(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, res => {
