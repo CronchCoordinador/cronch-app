@@ -354,29 +354,6 @@ function PhotoCapture({ onCapture }) {
 }
 
 // ==================== MAIN APP ====================
-const htmlToPdfBlob = async (html) => {
-  const cont = document.createElement('div');
-  cont.style.position = 'absolute';
-  cont.style.left = '-10000px';
-  cont.style.top = '0';
-  cont.style.width = '816px';
-  cont.style.minHeight = '1056px';
-  cont.style.background = '#ffffff';
-  cont.innerHTML = (html || '').replace(/position:\s*fixed/gi, 'position: absolute');
-  document.body.appendChild(cont);
-  try {
-    const opt = {
-      margin: [10, 10, 10, 10],
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 816 },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    };
-    return await window.html2pdf().set(opt).from(cont).outputPdf('blob');
-  } finally {
-    document.body.removeChild(cont);
-  }
-};
 const uploadToDrive = async (base64, nombre) => {
   try {
     const b64 = typeof base64 === 'string' ? (base64.includes(',') ? base64.split(',')[1] : base64) : null;
@@ -1847,6 +1824,33 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
     alert('✅ Solicitud de certificado enviada correctamente');
   };
 
+  const pdfInputRef = useRef(null);
+  const [targetIdx, setTargetIdx] = useState(null);
+  const [subiendo, setSubiendo] = useState(null);
+
+  const elegirPDF = (idx) => { setTargetIdx(idx); if (pdfInputRef.current) pdfInputRef.current.click(); };
+
+  const onPDFSeleccionado = async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.type !== 'application/pdf') { alert('Solo se permiten archivos PDF'); return; }
+    if (f.size > 3 * 1024 * 1024) { alert('El archivo no puede superar 3MB'); return; }
+    const idx = targetIdx;
+    setSubiendo(idx);
+    try {
+      const b64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+      const sol = solicitudes[idx] || {};
+      const nombre = `CertificadoBancario_${String(sol.trabajador || 'doc').replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+      const link = await uploadToDrive(b64, nombre);
+      const actualizadas = solicitudes.map((s, j) => j === idx ? { ...s, pdfLink: link } : s);
+      setSolicitudes(actualizadas);
+      alert(link ? '✅ Certificado subido a Google Drive correctamente' : '⚠️ No se pudo subir el PDF, intenta de nuevo');
+    } finally {
+      setSubiendo(null);
+    }
+  };
+
   return (
     <div>
       <div className="page-header"><h1>Solicitud de Certificados</h1><p>Los empleados con contrato activo pueden solicitar su certificado laboral</p></div>
@@ -1889,11 +1893,16 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
           <div className="empty-state"><div className="icon">📋</div><p>No hay solicitudes registradas</p></div>
         ) : (
           <div className="table-wrap">
+            <input ref={pdfInputRef} type="file" accept="application/pdf" style={{display:'none'}} onChange={onPDFSeleccionado} />
             <table>
-              <thead><tr><th>Fecha</th><th>Trabajador</th><th>CC</th><th>Cargo</th><th>Acción</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Trabajador</th><th>CC</th><th>Cargo</th><th>Certificado / Acción</th></tr></thead>
               <tbody>
                 {solicitudes.map((s,i) => (
-                  <tr key={i}><td>{new Date(s.fecha).toLocaleDateString('es-CO')}</td><td>{s.trabajador}</td><td>{s.cc}</td><td>{s.cargo}</td><td><button className="btn btn-danger btn-sm" onClick={()=>{if(confirm('¿Eliminar esta solicitud?'))setSolicitudes(solicitudes.filter((_,j)=>j!==i));}}>🗑️</button></td></tr>
+                  <tr key={i}><td>{new Date(s.fecha).toLocaleDateString('es-CO')}</td><td>{s.trabajador}</td><td>{s.cc}</td><td>{s.cargo}</td><td style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                    <button className="btn btn-secondary btn-sm" disabled={subiendo===i} onClick={()=>elegirPDF(i)}>{subiendo===i ? '⏳ Subiendo…' : '📎 Cargar PDF'}</button>
+                    {s.pdfLink && <a href={s.pdfLink} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">🔗 Drive</a>}
+                    <button className="btn btn-danger btn-sm" onClick={()=>{if(confirm('¿Eliminar esta solicitud?'))setSolicitudes(solicitudes.filter((_,j)=>j!==i));}}>🗑️</button>
+                  </td></tr>
                 ))}
               </tbody>
             </table>
@@ -1944,7 +1953,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
         .bg-image { position: fixed; }
       }
     </style></head><body>
-      <div class="bg-image"><img src="${WATERMARK_IMG}" /></div>
+      <div class="bg-image"><img src="${WATERMARK_BG}" /></div>
       <p>Girardot, ${fechaTexto}</p>
       <div class="header">
         <h2>GERENTE GENERAL DE CRONCH ARTESANALMENTE OBLEA SAS</h2>
