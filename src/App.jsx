@@ -395,6 +395,46 @@ const htmlToPdfBlob = async (html) => {
   }
 };
 
+// Abre el certificado laboral en una pestaña nueva para ver / descargar / imprimir.
+const verCertificadoLaboral = (cert) => {
+  const salarioTexto = Number(cert.salario) === 1750905 ? 'un salario mínimo legal vigente' : formatCurrency(Number(cert.salario) || 0);
+  const fechaTexto = cert.fechaTexto || today();
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Certificado Laboral - ${cert.trabajador}</title>
+  <style>
+    @page { size: letter; margin: 2.5cm 3cm; }
+    body { font-family: 'Times New Roman', Times, serif; font-size: 13pt; line-height: 1.8; color: #000; position: relative; }
+    .bg-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+    .bg-image img { width: 100%; height: 100%; object-fit: cover; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h2 { font-size: 14pt; margin: 0; }
+    .body-text { text-align: justify; margin: 20px 0; }
+    .firma { margin-top: 60px; }
+    .firma p { margin: 2px 0; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .bg-image { position: fixed; } }
+  </style></head><body>
+    <div class="bg-image"><img src="${WATERMARK_BG}" /></div>
+    <p>Girardot, ${fechaTexto}</p>
+    <div class="header"><h2>GERENTE GENERAL DE CRONCH ARTESANALMENTE OBLEA SAS</h2><h2>CERTIFICA:</h2></div>
+    <div class="body-text">
+      <p>Que ${cert.tipoDoc === 'cédula de ciudadanía' ? 'el(la) señor(a)' : 'el(la) titular'} <strong>${cert.trabajador}</strong> identificado(a) con ${cert.tipoDoc} N° <strong>${Number(cert.cc).toLocaleString('es-CO')}</strong> se encuentra vinculado(a) a la empresa Cronch Artesanalmente Oblea S.A.S con NIT 901.481.136-4, en la cual desempeña labores como <strong>${cert.cargo}</strong> desde el ${formatDate(cert.ingreso)}, con un contrato a <strong>${String(cert.tipoContrato || '').toLowerCase()}</strong>, devengando ${salarioTexto} con todas las prestaciones de ley.</p>
+      <p>La presente se expide el ${fechaTexto} a solicitud del interesado.</p>
+    </div>
+    <div class="firma">
+      <p>______________________________________</p>
+      <p><strong>JEFFERSON CAMILO VALENCIA TELLEZ</strong></p>
+      <p>Gerente General de Cronch Artesanalmente Oblea SAS</p>
+      <p>CC. 1.016.079.724</p>
+      <p>CL 18 7 69 BRR CENTRO</p>
+      <p>CEL: 3112196438</p>
+    </div>
+  </body></html>`;
+  const ventana = window.open('', '_blank');
+  if (!ventana) { alert('Permite las ventanas emergentes para ver el certificado'); return; }
+  ventana.document.write(html);
+  ventana.document.close();
+  setTimeout(() => { ventana.print(); }, 500);
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1805,23 +1845,29 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
 function SolicitudesPanel({ solicitudes, setSolicitudes }) {
   const [cc, setCc] = useState('');
   const [result, setResult] = useState(null);
+  const EMPTY_PERFIL = { trabajador:'', tipoDoc:'cédula de ciudadanía', cc:'', cargo:'', tipoContrato:'TÉRMINO FIJO', ingreso: todayISO(), salario:'' };
+  const [perfil, setPerfil] = useState(EMPTY_PERFIL);
 
   const buscar = () => {
-    const found = PERSONAL_CRONCH.find(p => p.cc === cc.trim());
+    const id = cc.trim();
+    if (!id) return;
+    const found = PERSONAL_CRONCH.find(p => String(p.cc) === id) || (solicitudes || []).find(s => String(s.cc) === id);
     if (found) {
       setResult({ found: true, data: found });
     } else {
       setResult({ found: false });
+      setPerfil({ ...EMPTY_PERFIL, cc: id });
     }
   };
 
-  const enviarSolicitud = () => {
-    const newSol = { ...result.data, fecha: new Date().toISOString(), id: Date.now() };
-    setSolicitudes([...solicitudes, newSol]);
-    sendToSheet('addSolicitud', result.data);
-    setResult(null);
-    setCc('');
-    alert('✅ Solicitud de certificado enviada correctamente');
+  const guardarPerfil = () => {
+    if (!perfil.trabajador.trim() || !perfil.cc.trim() || !perfil.cargo.trim()) {
+      alert('Completa al menos Nombre, Documento y Cargo'); return;
+    }
+    const nuevo = { ...perfil, trabajador: perfil.trabajador.trim().toUpperCase(), salario: Number(perfil.salario) || 0, fecha: new Date().toISOString(), id: Date.now() };
+    setSolicitudes([...(solicitudes || []), nuevo]);
+    setResult({ found: true, data: nuevo });
+    alert('✅ Perfil creado correctamente. Ya puedes ver tu certificado.');
   };
 
   const pdfInputRef = useRef(null);
@@ -1867,18 +1913,31 @@ function SolicitudesPanel({ solicitudes, setSolicitudes }) {
         </div>
 
         {result && !result.found && (
-          <div className="alert alert-warning" style={{marginTop:16}}>⚠️ No te encuentras con contrato activo. Si crees que es un error, contacta a recursos humanos.</div>
+          <div style={{marginTop:16}} className="fade-in">
+            <div className="alert alert-warning">No encontramos este documento registrado. Crea tu perfil para generar tu certificado:</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:12}}>
+              <div className="form-group"><label>Nombre completo *</label><input value={perfil.trabajador} onChange={e=>setPerfil({...perfil,trabajador:e.target.value})} placeholder="Nombres y apellidos" /></div>
+              <div className="form-group"><label>Tipo de documento</label><select value={perfil.tipoDoc} onChange={e=>setPerfil({...perfil,tipoDoc:e.target.value})}><option>cédula de ciudadanía</option><option>cédula de extranjería</option><option>permiso de proteccion temporal</option><option>pasaporte</option></select></div>
+              <div className="form-group"><label>Número de documento *</label><input value={perfil.cc} onChange={e=>setPerfil({...perfil,cc:e.target.value})} /></div>
+              <div className="form-group"><label>Cargo *</label><input value={perfil.cargo} onChange={e=>setPerfil({...perfil,cargo:e.target.value})} placeholder="Ej: COCINERO" /></div>
+              <div className="form-group"><label>Tipo de contrato</label><select value={perfil.tipoContrato} onChange={e=>setPerfil({...perfil,tipoContrato:e.target.value})}><option>TÉRMINO FIJO</option><option>TÉRMINO INDEFINIDO</option><option>OBRA O LABOR</option><option>PRESTACIÓN DE SERVICIOS</option></select></div>
+              <div className="form-group"><label>Fecha de ingreso</label><input type="date" value={perfil.ingreso} onChange={e=>setPerfil({...perfil,ingreso:e.target.value})} /></div>
+              <div className="form-group"><label>Salario mensual</label><input type="number" value={perfil.salario} onChange={e=>setPerfil({...perfil,salario:e.target.value})} placeholder="Ej: 1750905" /></div>
+            </div>
+            <button className="btn btn-primary" onClick={guardarPerfil} style={{marginTop:12}}>💾 Crear mi perfil</button>
+          </div>
         )}
         {result && result.found && (
           <div style={{marginTop:16}} className="fade-in">
-            <div className="alert alert-success">✅ Empleado encontrado con contrato activo</div>
+            <div className="alert alert-success">✅ Datos encontrados</div>
             <div style={{background:'#f0f5ff',borderRadius:8,padding:16,marginTop:8}}>
               <p><strong>Nombre:</strong> {result.data.trabajador}</p>
+              <p><strong>Documento:</strong> {result.data.tipoDoc} N° {result.data.cc}</p>
               <p><strong>Cargo:</strong> {result.data.cargo}</p>
               <p><strong>Tipo Contrato:</strong> {result.data.tipoContrato}</p>
               <p><strong>Fecha Ingreso:</strong> {result.data.ingreso}</p>
             </div>
-            <button className="btn btn-primary" onClick={enviarSolicitud} style={{marginTop:12}}>📋 Enviar Solicitud de Certificado</button>
+            <button className="btn btn-primary" onClick={()=>verCertificadoLaboral(result.data)} style={{marginTop:12}}>📄 Ver / Descargar mi Certificado</button>
           </div>
         )}
       </div>
