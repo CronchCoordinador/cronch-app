@@ -354,6 +354,29 @@ function PhotoCapture({ onCapture }) {
 }
 
 // ==================== MAIN APP ====================
+const htmlToPdfBlob = async (html) => {
+  const cont = document.createElement('div');
+  cont.style.position = 'absolute';
+  cont.style.left = '-10000px';
+  cont.style.top = '0';
+  cont.style.width = '816px';
+  cont.style.minHeight = '1056px';
+  cont.style.background = '#ffffff';
+  cont.innerHTML = (html || '').replace(/position:\s*fixed/gi, 'position: absolute');
+  document.body.appendChild(cont);
+  try {
+    const opt = {
+      margin: [10, 10, 10, 10],
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 816 },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    };
+    return await window.html2pdf().set(opt).from(cont).outputPdf('blob');
+  } finally {
+    document.body.removeChild(cont);
+  }
+};
 const uploadToDrive = async (base64, nombre) => {
   try {
     const b64 = typeof base64 === 'string' ? (base64.includes(',') ? base64.split(',')[1] : base64) : null;
@@ -367,6 +390,32 @@ const uploadToDrive = async (base64, nombre) => {
     const json = await res.json();
     return json.ok ? json.link : null;
   } catch { return null; }
+};
+
+// Genera el PDF en buena calidad (nitidez x2, tamaño carta, con márgenes) para subir a Drive.
+const htmlToPdfBlob = async (html) => {
+  const cont = document.createElement('div');
+  cont.style.position = 'absolute';
+  cont.style.left = '-10000px';
+  cont.style.top = '0';
+  cont.style.width = '816px';        // ancho carta a 96 dpi
+  cont.style.minHeight = '1056px';   // alto carta a 96 dpi
+  cont.style.background = '#ffffff';
+  // Ancla la marca de agua al documento (no a la ventana) para que aparezca bien.
+  cont.innerHTML = (html || '').replace(/position:\s*fixed/gi, 'position: absolute');
+  document.body.appendChild(cont);
+  try {
+    const opt = {
+      margin: [10, 10, 10, 10],
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 816 },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    };
+    return await window.html2pdf().set(opt).from(cont).outputPdf('blob');
+  } finally {
+    document.body.removeChild(cont);
+  }
 };
 
 export default function App() {
@@ -590,7 +639,11 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
   };
 
   const handleDelete = (id) => {
-    if (confirm('¿Eliminar este desprendible?')) setDesprendibles(desprendibles.filter(d => d.id !== id));
+    if (confirm('¿Eliminar este desprendible?')) {
+      const actualizados = desprendibles.filter(d => d.id !== id);
+      setDesprendibles(actualizados);
+      saveData(KEYS.desprendibles, actualizados);
+    }
   };
 
   const mesesDisponibles = [...new Set(desprendibles.map(d => d.mes))];
@@ -1475,9 +1528,7 @@ function DotacionPanel({ inventario, setInventario, entregas, setEntregas, emple
     try {
       const nombre = `Acta_Dotacion_${newEntrega.empleadoNombre}_${newEntrega.fecha}.pdf`;
       if (window.html2pdf) {
-        const el = document.createElement('div');
-        el.innerHTML = actaHTML;
-        const pdfBlob = await window.html2pdf().from(el).outputPdf('blob');
+        const pdfBlob = await htmlToPdfBlob(actaHTML);
         const reader = new FileReader();
         actaLink = await new Promise(resolve => {
           reader.onload = async (e) => {
@@ -1927,9 +1978,7 @@ function CertificadosPanel({ certificados, setCertificados }) {
     try {
       const nombre = `Certificado_${preview.trabajador}_${preview.fechaGeneracion?.split('T')[0]}.pdf`;
       if (window.html2pdf) {
-        const element = document.createElement('div');
-        element.innerHTML = preview.html || '';
-        const pdfBlob = await window.html2pdf().from(element).outputPdf('blob');
+        const pdfBlob = await htmlToPdfBlob(preview.html || '');
         const reader = new FileReader();
         driveLink = await new Promise(resolve => {
           reader.onload = async (e) => {
