@@ -583,6 +583,7 @@ function DesprendiblesPanel({ desprendibles, setDesprendibles, empleados, user }
       ? desprendibles.map(d => d.empleadoDoc === form.empleadoDoc && d.mes === form.mes && d.anio === form.anio ? nuevo : d)
       : [...desprendibles, nuevo];
     setDesprendibles(actualizados);
+    saveData(KEYS.desprendibles, actualizados);
     setForm({ empleadoDoc: '', empleadoNombre: '', mes: MESES[0], anio: new Date().getFullYear().toString(), pdf: null, pdfNombre: '' });
     setShowForm(false);
     alert(pdfLink ? '✅ Desprendible subido a Google Drive correctamente' : '✅ Desprendible guardado (sin link Drive)');
